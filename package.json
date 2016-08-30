@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/Siri0n/InterActiOn.git"
   },
-  "author": "",
+  "author": "Siri0n",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/Siri0n/InterActiOn/issues"
@@ -18,21 +18,28 @@
   "homepage": "https://github.com/Siri0n/InterActiOn#readme",
   "devDependencies": {
     "babel-preset-es2015": "^6.3.13",
-    "babel-preset-react": "^6.3.13",
     "babelify": "^7.2.0",
     "browserify": "^13.0.0",
+    "browserify-shim": "^3.8.12",
     "express": "^4.13.3",
     "gulp": "^3.9.0",
-    "gulp-less": "^3.0.5",
     "gulp-watch": "^4.3.5",
     "vinyl-source-stream": "^1.1.0",
     "watchify": "^3.7.0"
   },
   "dependencies": {
-    "bacon.model": "^0.1.12",
-    "baconjs": "^0.7.83",
-    "lodash": "^4.0.0",
-    "react": "^0.14.6",
-    "react-dom": "^0.14.6"
+    "lodash": "^4.0.0"
+  },
+  "browser": {
+    "phaser": "./distr/phaser.min.js"
+  },
+  "browserify-shim": {
+    "phaser": "global:Phaser",
+    "pixi": "global:PIXI"
+  },
+  "browserify": {
+    "transform": [
+      "browserify-shim"
+    ]
   }
 }

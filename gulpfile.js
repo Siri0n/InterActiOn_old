@@ -3,7 +3,6 @@ var watch = require("gulp-watch");
 var browserify = require("browserify");
 var watchify = require("watchify");
 var source = require("vinyl-source-stream");
-var less = require("gulp-less");
 var express = require("express");
 
 var b = browserify({
@@ -13,12 +12,14 @@ var b = browserify({
 }).transform(
 	"babelify", 
 	{
-		presets: ["es2015", "react"]
+		presets: ["es2015"],
+		ignore: /distr\/.*/
 	}
 );
 
 b.on("update", bundle);
 gulp.task("browserify", bundle);
+gulp.task("default", ["browserify"]);
 
 function bundle(){
 	console.log("Transforming...");
@@ -28,17 +29,6 @@ function bundle(){
 		.pipe(source("bundle.js"))
 		.pipe(gulp.dest("./"));
 }
-
-gulp.task("less", function(){
-	return gulp.src("css/*.less")
-		.pipe(less())
-		.on("error", console.log.bind(console, "less error"))
-		.on("end", console.log.bind(console, "less end"))
-		.pipe(gulp.dest("./"));
-})
-
-gulp.watch("css/*.less", ["less"])
-gulp.task("default", ["browserify", "less"]);
 
 var app = express();
 app.use(express.static("./"));
