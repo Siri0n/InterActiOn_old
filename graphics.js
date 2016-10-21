@@ -1,7 +1,7 @@
 var Phaser = require("phaser");
 var Promise = require("bluebird");
 
-function Graphics(){
+module.exports = function(){
 	var graphics = this;
 
 	this.start = function(width, height){
@@ -33,8 +33,6 @@ function Graphics(){
 		});
 	}
 }
-
-module.exports = Graphics;
 
 function GameGfx({game, data, rect}){
 	var group = game.add.group();
@@ -70,7 +68,8 @@ function BoardGfx({game, group, data}){
 		}
 	}
 
-	var tokens = this.tokens = [];
+	var tokens = this.tokens = Object.create(null);
+
 	var mask = game.add.graphics(0, 0);
 	mask.isMask = true;
 	g.add(mask);
@@ -78,17 +77,17 @@ function BoardGfx({game, group, data}){
 	mask.drawRect(0, 0, this.width, this.height);
 	mask.endFill();
 
-	function removeToken(token){
-		var i = tokens.indexOf(token);
-		~i && tokens.splice(i, 1);
+	function removeToken(id){
+		delete tokens[id];
 	}
 
-	this.createToken = function(x, y, data){
+	this.createToken = function(x, y, {id, type}){
 		var token = new TokenGfx(
 			{
 				game, 
 				group: tokensLayer, 
-				data, 
+				id,
+				type, 
 				pos: {x, y}, 
 				cellSize: c, 
 				mask, 
@@ -98,15 +97,14 @@ function BoardGfx({game, group, data}){
 				}
 			}
 		);
-		tokens.push(token);
+		tokens[id] = token;
 		return token;
 	}
 
 }
 
-function TokenGfx({game, group, data, pos, cellSize, mask, api}){
+function TokenGfx({game, group, id, type, pos, cellSize, mask, api}){
 	var self = this;
-	var type = data;
 	var c = cellSize;
 	var g = game.make.image(pos.x*cellSize, pos.y*c, "tokens/" + type);
 	const time = 1000;
@@ -128,7 +126,7 @@ function TokenGfx({game, group, data, pos, cellSize, mask, api}){
 	this.destroy = function(){
 		g.destroy();
 		mask.isMask = true; //dirty hack for dirty case
-		api.remove(self);
+		api.remove(id);
 	}
 	this.fadeIn = function(){
 		return new Promise(function(resolve, reject){

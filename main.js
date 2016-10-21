@@ -1,8 +1,12 @@
-var Graphics = require("./graphics");
+var GraphicsController = require("./graphicsController");
+var BoardController = require("./boardController");
 var Promise = require("bluebird");
-var g = new Graphics();
 
 const size = 7;
+
+var g = new GraphicsController();
+var b = new BoardController(size, null, {fire: 5, water: 1});
+
 
 var planRaw = [
 	"x     x" +
@@ -80,8 +84,8 @@ var planRaw = [
 	" xxxxxx" +
 	"x     x" +
 	"x     x" +
-	" x    x" +
-	"  xxxxx" +
+	" xxxxxx" +
+	"  x   x" +
 	" x    x" +
 	"x     x",
 
@@ -114,42 +118,11 @@ var plan = planRaw.map(function(str){
 	return coords;
 })
 
-
 g.start(900, 600).then(function(){
-	Promise.reduce(plan, step, g.board);
+	b.onCommand.on(g.obey);
+	b.init();
 })
 
-
-function step(board, coords){
-	shuffle(coords);
-	var i = 0;
-	var promises = [];
-	while(board.tokens[i] && coords[i]){
-		console.log("move");
-		promises.push(
-			board.tokens[i].moveTo(...coords[i])
-		);
-		i++;
-	}
-	while(board.tokens[i]){
-		console.log("destroy");
-		let token = board.tokens[i];
-		promises.push(
-			board.tokens[i].fadeOut()
-			.then(() => token.destroy())
-		);
-		i++;
-	}
-	while(coords[i]){
-		console.log("create");
-		let token = board.createToken(...coords[i], "fire");
-		promises.push(
-			token.fadeIn()
-		);
-		i++;
-	}
-	return Promise.all(promises).then(() => board);
-}
 
 
 function shuffle(array) {
