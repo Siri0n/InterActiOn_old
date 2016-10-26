@@ -1,5 +1,7 @@
 var Phaser = require("phaser");
 var Promise = require("bluebird");
+var Signal = require("./signal");
+var BoardUIController = require("./boardUIController");
 
 module.exports = function(){
 	var graphics = this;
@@ -18,10 +20,12 @@ module.exports = function(){
 						game.load.image("cell", "assets/cell.png");
 						game.load.image("tokens/fire", "assets/tokens/fire.png");
 						game.load.image("tokens/water", "assets/tokens/water.png");
+						game.load.image("tokens/shit", "assets/tokens/shit.png");
 						game.load.start();
 					},
 					create(){
 						game.stage.disableVisibilityChange = true;
+						game.canvas.oncontextmenu = function (e) { e.preventDefault(); }
 						var main = new GameGfx({game, data, rect: new Phaser.Rectangle(0, 0, game.width, game.height)});
 						graphics.board = main.board;
 						resolve();
@@ -39,7 +43,8 @@ function GameGfx({game, data, rect}){
 	group.x = rect.x;
 	group.y = rect.y;
 
-	var board = this.board = new BoardGfx({game, group, data});
+	var board = new BoardGfx({game, group, data});
+	this.board = new BoardUIController(board);
 	var ratio = Math.min(rect.width/board.width, rect.height/board.height);
 	board.g.scale.x = board.g.scale.y = ratio;
 	board.g.x = (rect.width - board.width*ratio)/2;
@@ -47,6 +52,7 @@ function GameGfx({game, data, rect}){
 }
 
 function BoardGfx({game, group, data}){
+	var board = this;
 	var g = game.add.group();
 	group.add(g);
 	var backgroundLayer = game.add.group();
@@ -59,6 +65,8 @@ function BoardGfx({game, group, data}){
 
 	this.width = this.height = n*c;
 	this.g = g;
+	this.onTokenClick = new Signal();
+	this.onTokenHover = new Signal();
 
 	for(let i = 0; i < n; i++){
 		for(let j = 0; j < n; j++){
@@ -93,7 +101,8 @@ function BoardGfx({game, group, data}){
 				mask, 
 				api:
 				{
-					remove: removeToken
+					remove: removeToken,
+					click: board.onTokenClick.dispatch
 				}
 			}
 		);
@@ -107,9 +116,25 @@ function TokenGfx({game, group, id, type, pos, cellSize, mask, api}){
 	var self = this;
 	var c = cellSize;
 	var g = game.make.image(pos.x*cellSize, pos.y*c, "tokens/" + type);
-	const time = 1000;
+	const time = 500;
 	const easing = Phaser.Easing.Quadratic.InOut;
 	group.add(g);
+	g.inputEnabled = true;
+	g.events.onInputDown.add(function(_, pointer){
+		if(pointer.rightButton.isDown){
+			return api.click({
+				type: "cast",
+				x: pos.x,
+				y: pos.y
+			});
+		}else if(pointer.leftButton.isDown){
+			return api.click({
+				type: "make",
+				x: pos.x,
+				y: pos.y
+			});
+		}
+	});
 	g.mask = mask;
 	this.pos = pos;
 	this.moveTo = function(x, y){

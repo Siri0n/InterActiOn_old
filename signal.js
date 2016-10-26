@@ -1,13 +1,13 @@
 module.exports = function(){
 	var onCallbacks = [];
 	var onceCallbacks = [];
-	this.on = function(cb){
+	this.add = function(cb){
 		onCallbacks.push(cb);
 	}
-	this.once = function(cb){
+	this.addOnce = function(cb){
 		onceCallbacks.push(cb);
 	}
-	this.off = function(cb){
+	this.remove = function(cb){
 		var i = onCallbacks.indexOf(cb);
 		if(~i){
 			onCallbacks.splice(i, 1);

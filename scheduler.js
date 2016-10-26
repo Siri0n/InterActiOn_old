@@ -7,9 +7,9 @@ module.exports = function(execute){
 	var executing = false;
 
 	(this.onExecuteStart = new Signal())
-	.on(() => executing = true);
+	.add(() => executing = true);
 	(this.onExecuteEnd = new Signal())
-	.on(() => executing = false);
+	.add(() => executing = false);
 
 
 	this.abort = function(){
@@ -34,6 +34,7 @@ module.exports = function(execute){
 			console.log(err);
 			scheduler.abort(); 
 			scheduler.onExecuteEnd.dispatch()
+			throw err;
 		});
 	}
 	
