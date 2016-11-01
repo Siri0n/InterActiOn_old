@@ -2,13 +2,26 @@ var Phaser = require("phaser");
 var Promise = require("bluebird");
 var Signal = require("./signal");
 var BoardUIController = require("./boardUIController");
+var Scheduler = require("./scheduler");
 
 module.exports = function(){
-	var graphics = this;
+	var ui = this;
+	var scheduler = new Scheduler(executeCommand);
+	var started = false;
+
+	function executeCommand(command){
+		return Promise.all([
+			ui.board.executeCommand(command.board),
+			ui.board2.executeCommand(command.board2)
+		]);
+	} 
+
+	this.obey = scheduler.schedule;
+	this.onExecuteEnd = scheduler.onExecuteEnd;
 
 	this.start = function(width, height){
 		return new Promise(function(resolve, reject){
-			var game = new Phaser.Game(800, 600, Phaser.AUTO, '');
+			var game = new Phaser.Game(width, height, Phaser.AUTO, '');
 
 			game.state.add("game", (function(){
 				var data;
@@ -27,7 +40,9 @@ module.exports = function(){
 						game.stage.disableVisibilityChange = true;
 						game.canvas.oncontextmenu = function (e) { e.preventDefault(); }
 						var main = new GameGfx({game, data, rect: new Phaser.Rectangle(0, 0, game.width, game.height)});
-						graphics.board = main.board;
+						ui.board = main.board;
+						ui.board2 = main.board2;
+						started = true;
 						resolve();
 					}
 				}
@@ -39,16 +54,23 @@ module.exports = function(){
 }
 
 function GameGfx({game, data, rect}){
+	const magic = 2.2;
 	var group = game.add.group();
 	group.x = rect.x;
 	group.y = rect.y;
 
 	var board = new BoardGfx({game, group, data});
 	this.board = new BoardUIController(board);
-	var ratio = Math.min(rect.width/board.width, rect.height/board.height);
-	board.g.scale.x = board.g.scale.y = ratio;
-	board.g.x = (rect.width - board.width*ratio)/2;
-	board.g.y = (rect.height - board.height*ratio)/2;
+
+	var board2 = new BoardGfx({game, group, data});
+	this.board2 = new BoardUIController(board2);
+
+	//fuck you. yes, you. fuck. you. this is the only comment you have
+	var ratio = Math.min(rect.width/(magic*board.width), rect.height/board.height);
+	board.g.scale.x = board.g.scale.y = board2.g.scale.x = board2.g.scale.y = ratio;
+	board.g.x = (rect.width - magic*board.width*ratio)/2;
+	board2.g.x = board.g.x + board.width*(magic-1)*ratio;
+	board.g.y = board2.g.y = (rect.height - board.height*ratio)/2;
 }
 
 function BoardGfx({game, group, data}){
@@ -139,7 +161,7 @@ function TokenGfx({game, group, id, type, pos, cellSize, mask, api}){
 	this.pos = pos;
 	this.moveTo = function(x, y){
 		return new Promise(function(resolve, reject){
-			game.add.tween(g).to({x: x*c, y: y*c}, time/*100*game.math.distance(x, y, pos.x, pos.y)*/, 
+			game.add.tween(g).to({x: x*c, y: y*c}, 100*game.math.distance(x, y, pos.x, pos.y), 
 				easing, true)
 			.onComplete.add(function(){
 				pos = {x, y};

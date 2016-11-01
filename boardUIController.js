@@ -1,21 +1,12 @@
-var Scheduler = require("./scheduler");
-var Graphics = require("./graphics");
 var Promise = require("bluebird");
 var Signal = require("./signal");
 
 module.exports = function(board){
 	var self = this;
-	var scheduler = new Scheduler(execute);
 
 	board.onTokenClick.add(function(event){
 		self.events.dispatch(event);
 	});
-
-	this.obey = scheduler.schedule;
-	this.onExecuteEnd = scheduler.onExecuteEnd;
-	this.getBoardSnapshot = function(){
-
-	}
 
 	this.events = new Signal();
 
@@ -35,14 +26,16 @@ module.exports = function(board){
 		}
 	}
 
-	function execute({data, meta}){
-		console.log("execute command", JSON.stringify(data), JSON.stringify(meta));
+	this.executeCommand = function({data, meta} = {null, null}){
+		if(!(data || meta)){
+			return;
+		}
 		if(meta.type == "init"){
 			rename(data, "create", "appear");
 		}
 		if(meta.type == "fall"){
 			rename(data, "create", "fall");
-			data.fall.sort((a, b) => a.x - b.x || a.y - b.y);
+			data.fall.sort((a, b) => b.x - a.x || b.y - a.y);
 			let j;
 			let lastX = -1; 
 			for(let i = 0; i < data.fall.length; i++){
@@ -54,7 +47,6 @@ module.exports = function(board){
 			}
 		}
 		return Promise.map(Object.keys(data), function(key){
-			console.log(key);
 			if(Array.isArray(data[key])){
 				return Promise.map(data[key], methods[key]);
 			}else{

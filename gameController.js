@@ -1,20 +1,30 @@
 var Signal = require("./signal");
 var seedrandom = require("seedrandom");
 
-function BoardController(size, spells, frequencies){
+function GameController(size, spells, frequencies){
 	var self = this;
-	var board = new Board(size);
+	var boards;
 	var typeGen = new TokenTypeGenerator(frequencies);
 
 	this.onCommand = new Signal();
-	this.init = function(){
+
+	function initBoard(board){
 		board.commandBuilder.start({type: "init"});
 		for(let i = 0; i < size; i++){
 			for(let j = 0; j < size; j++){
 				board.createToken(i, j, typeGen.getType());
 			}
 		}
-		var command = board.commandBuilder.finish();
+		return board.commandBuilder.finish();
+	}
+
+	this.init = function(...players){
+		boards = {};
+		var command = {};
+		for(let player of players){
+			boards[player] = new Board(size);
+			command[player] = initBoard(boards[player]);
+		}
 		self.onCommand.dispatch(command);
 	}
 	this.handleTurn = function(turn){
@@ -24,37 +34,40 @@ function BoardController(size, spells, frequencies){
 			return self.castSpell(turn);
 		// }
 	}
-	this.castSpell = function({x, y}){
-		board.commandBuilder.start({});
-		board.destroyToken(x, y);
-		board.destroyToken(x - 1, y);
-		board.destroyToken(x, y - 1);
-		board.destroyToken(x + 1, y);
-		board.destroyToken(x, y + 1);
-		var command = board.commandBuilder.finish();
+	this.castSpell = function({x, y, player}){
+		var currentBoard = boards[player];
+		currentBoard.commandBuilder.start({});
+		currentBoard.destroyToken(x, y);
+		currentBoard.destroyToken(x - 1, y);
+		currentBoard.destroyToken(x, y - 1);
+		currentBoard.destroyToken(x + 1, y);
+		currentBoard.destroyToken(x, y + 1);
+		var command = {};
+		command[player] = currentBoard.commandBuilder.finish();
 		self.onCommand.dispatch(command);
-		self.fall();
-		if(board.containsShit()){
+		self.fall(player);
+		if(currentBoard.containsShit()){
 			return "next";
 		}else{
 			return "end";
 		}
 	}
-	this.fall = function(){
-		board.commandBuilder.start({type: "fall"});
+	this.fall = function(player){
+		var currentBoard = boards[player];
+		currentBoard.commandBuilder.start({type: "fall"});
 		for(let i = 0; i < size; i++){
 			let j = size - 1;
 			while(j >= 0){
-				if(board.getToken(i, j)){
+				if(currentBoard.getToken(i, j)){
 					j--;
 					continue;
 				}else{
 					let k = j - 1;
-					while(k > 0 && !board.getToken(i, k)){
+					while(k > 0 && !currentBoard.getToken(i, k)){
 						k--;
 					}
-					if(board.getToken(i, k)){
-						board.moveToken(i, k, i, j);
+					if(currentBoard.getToken(i, k)){
+						currentBoard.moveToken(i, k, i, j);
 						j--;
 					}else{
 						break;
@@ -62,16 +75,17 @@ function BoardController(size, spells, frequencies){
 				}
 			}
 			while(j >= 0){
-				board.createToken(i, j, typeGen.getType());
+				currentBoard.createToken(i, j, typeGen.getType());
 				j--;
 			}
 		}
-		var command = board.commandBuilder.finish();
+		var command = {};
+		command[player] = currentBoard.commandBuilder.finish();
 		self.onCommand.dispatch(command);
 	}
 }
 
-module.exports = BoardController;
+module.exports = GameController;
 
 function TokenTypeGenerator(frequencies){
 	var rnd = seedrandom("test");
