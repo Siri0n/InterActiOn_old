@@ -10,6 +10,7 @@ module.exports = function(){
 	var started = false;
 
 	function executeCommand(command){
+		//console.log(command);
 		return Promise.all([
 			ui.board.executeCommand(command.board),
 			ui.board2.executeCommand(command.board2)

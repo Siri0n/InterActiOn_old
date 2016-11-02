@@ -1,31 +1,36 @@
 var Signal = require("./signal");
+var CommandBuilder = require("./commandBuilder");
 var seedrandom = require("seedrandom");
 
 function GameController(size, spells, frequencies){
 	var self = this;
+	var commandBuilder = new CommandBuilder();
 	var boards;
 	var typeGen = new TokenTypeGenerator(frequencies);
 
 	this.onCommand = new Signal();
 
 	function initBoard(board){
-		board.commandBuilder.start({type: "init"});
+		board.meta("type", "init");
 		for(let i = 0; i < size; i++){
 			for(let j = 0; j < size; j++){
 				board.createToken(i, j, typeGen.getType());
 			}
 		}
-		return board.commandBuilder.finish();
+	}
+
+	function order(){
+		self.onCommand.dispatch(commandBuilder.finish());
 	}
 
 	this.init = function(...players){
 		boards = {};
-		var command = {};
+		
 		for(let player of players){
-			boards[player] = new Board(size);
-			command[player] = initBoard(boards[player]);
+			boards[player] = new Board(size, commandBuilder.access(player));
+			initBoard(boards[player]);
 		}
-		self.onCommand.dispatch(command);
+		self.onCommand.dispatch(commandBuilder.finish());
 	}
 	this.handleTurn = function(turn){
 		// if(turn.type == "make"){
@@ -35,39 +40,36 @@ function GameController(size, spells, frequencies){
 		// }
 	}
 	this.castSpell = function({x, y, player}){
-		var currentBoard = boards[player];
-		currentBoard.commandBuilder.start({});
-		currentBoard.destroyToken(x, y);
-		currentBoard.destroyToken(x - 1, y);
-		currentBoard.destroyToken(x, y - 1);
-		currentBoard.destroyToken(x + 1, y);
-		currentBoard.destroyToken(x, y + 1);
-		var command = {};
-		command[player] = currentBoard.commandBuilder.finish();
-		self.onCommand.dispatch(command);
+		var board = boards[player];
+		board.destroyToken(x, y);
+		board.destroyToken(x - 1, y);
+		board.destroyToken(x, y - 1);
+		board.destroyToken(x + 1, y);
+		board.destroyToken(x, y + 1);
+		order();
 		self.fall(player);
-		if(currentBoard.containsShit()){
+		if(board.containsShit()){
 			return "next";
 		}else{
 			return "end";
 		}
 	}
 	this.fall = function(player){
-		var currentBoard = boards[player];
-		currentBoard.commandBuilder.start({type: "fall"});
+		var board = boards[player];
+		board.meta("type", "fall");
 		for(let i = 0; i < size; i++){
 			let j = size - 1;
 			while(j >= 0){
-				if(currentBoard.getToken(i, j)){
+				if(board.getToken(i, j)){
 					j--;
 					continue;
 				}else{
 					let k = j - 1;
-					while(k > 0 && !currentBoard.getToken(i, k)){
+					while(k > 0 && !board.getToken(i, k)){
 						k--;
 					}
-					if(currentBoard.getToken(i, k)){
-						currentBoard.moveToken(i, k, i, j);
+					if(board.getToken(i, k)){
+						board.moveToken(i, k, i, j);
 						j--;
 					}else{
 						break;
@@ -75,13 +77,11 @@ function GameController(size, spells, frequencies){
 				}
 			}
 			while(j >= 0){
-				currentBoard.createToken(i, j, typeGen.getType());
+				board.createToken(i, j, typeGen.getType());
 				j--;
 			}
 		}
-		var command = {};
-		command[player] = currentBoard.commandBuilder.finish();
-		self.onCommand.dispatch(command);
+		order();
 	}
 }
 
@@ -108,13 +108,12 @@ function TokenTypeGenerator(frequencies){
 	}
 }
 
-function Board(size){
+function Board(size, commandBuilder){
 	var board = this;
 	var tokens = [];
 	var cache = new Cache();
-	var commandBuilder = this.commandBuilder = new CommandBuilder();
 
-
+	this.meta = commandBuilder.meta;
 	this.getToken = function(x, y){
 		var key = x + "," + y;
 		var cachedResult = cache.get(key);
@@ -135,7 +134,7 @@ function Board(size){
 			token.x = x1;
 			token.y = y1;
 			cache.invalidate();
-			commandBuilder.add("move", {id: token.id, x: x1, y: y1});
+			commandBuilder.put("move", {id: token.id, x: x1, y: y1});
 		}else{
 			console.log("token not found at " + x + " " + y);
 		}
@@ -146,7 +145,7 @@ function Board(size){
 		if(token){
 			remove(tokens, token);
 			cache.invalidate();
-			commandBuilder.add("vanish", {id: token.id});
+			commandBuilder.put("vanish", {id: token.id});
 		}else{
 			console.log("token not found at " + x + " " + y);
 		}
@@ -155,7 +154,7 @@ function Board(size){
 	this.createToken = function(x, y, type){
 		var token = new Token(x, y, type);
 		tokens.push(token);
-		commandBuilder.add("create", {id: token.id, x, y, type});
+		commandBuilder.put("create", {id: token.id, x, y, type});
 	}
 
 	this.containsShit = function(){
@@ -192,37 +191,4 @@ function remove(arr, elem){
 var lastId = 1;
 function generateNewId(){
 	return lastId++;
-}
-
-function CommandBuilder(){
-	var command = {};
-	this.start = function(meta){
-		if(command.meta){
-			throw new Error("Previous command wasn't finished, cannot start new command.");
-		}else{
-			command.meta = meta;
-			command.data = {};
-		}
-	}
-	this.set = function(key, elem){
-		if(!command.meta){
-			throw new Error("Command didn't started, cannot set data.");
-		}
-		command.data[key] = elem;
-	}
-	this.add = function(key, elem){
-		if(!command.meta){
-			throw new Error("Command didn't started, cannot add data.");
-		}
-		command.data[key] = command.data[key] || [];
-		command.data[key].push(elem);
-	}
-	this.finish = function(){
-		if(!command.meta){
-			throw new Error("Command didn't started, cannot finish it.");
-		}
-		var command0 = command;
-		command = {};
-		return command0;
-	}
 }

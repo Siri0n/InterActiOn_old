@@ -19,7 +19,7 @@ module.exports = function(execute){
 	this.mute = false;
 
 	this.schedule = function(command){
-		console.log("schedule", command);
+		//console.log("schedule", JSON.stringify(command));
 		if(scheduler.mute){
 			return;
 		}
@@ -31,7 +31,6 @@ module.exports = function(execute){
 		executeCommands()
 		.then(() => scheduler.onExecuteEnd.dispatch())
 		.catch(function(err){
-			console.log(err);
 			scheduler.abort(); 
 			scheduler.onExecuteEnd.dispatch()
 			throw err;

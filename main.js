@@ -9,7 +9,9 @@ const size = 7;
 var ui = new UI();
 var gc = new GameController(size, null, {fire: 3, water: 3, shit: 1});
 
-ui.start(1500, 600).then(function(){
+var p = ui.start(1500, 600);
+console.log(p);
+p.then(function(){
 	gc.onCommand.add(ui.obey);
 	gc.init("board", "board2");
 	var p = new LocalPlayer(ui.board.events);
