@@ -1,5 +1,5 @@
 var Promise = require("bluebird");
-var Signal = require("./signal");
+var Signal = require("../util/signal");
 
 module.exports = function(board){
 	var self = this;

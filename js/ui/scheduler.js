@@ -1,4 +1,4 @@
-var Signal = require("./signal");
+var Signal = require("../util/signal");
 var Promise = require("bluebird");
 
 module.exports = function(execute){

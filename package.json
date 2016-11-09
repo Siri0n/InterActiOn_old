@@ -33,7 +33,7 @@
     "seedrandom": "^2.4.2"
   },
   "browser": {
-    "phaser": "./distr/phaser.min.js"
+    "phaser": ".js/distr/phaser.min.js"
   },
   "browserify-shim": {
     "phaser": "global:Phaser",

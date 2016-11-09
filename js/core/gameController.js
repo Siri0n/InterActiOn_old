@@ -1,8 +1,8 @@
-var Signal = require("./signal");
+var Signal = require("../util/signal");
 var CommandBuilder = require("./commandBuilder");
 var seedrandom = require("seedrandom");
 
-function GameController(size, spells, frequencies){
+function GameController(spells, frequencies){
 	var self = this;
 	var commandBuilder = new CommandBuilder();
 	var boards;
@@ -12,8 +12,8 @@ function GameController(size, spells, frequencies){
 
 	function initBoard(board){
 		board.meta("type", "init");
-		for(let i = 0; i < size; i++){
-			for(let j = 0; j < size; j++){
+		for(let i = 0; i < board.size; i++){
+			for(let j = 0; j < board.size; j++){
 				board.createToken(i, j, typeGen.getType());
 			}
 		}
@@ -23,12 +23,12 @@ function GameController(size, spells, frequencies){
 		self.onCommand.dispatch(commandBuilder.finish());
 	}
 
-	this.init = function(...players){
+	this.init = function({players, boardSize}){
 		boards = {};
 		
 		for(let player of players){
-			boards[player] = new Board(size, commandBuilder.access(player));
-			initBoard(boards[player]);
+			boards[player.id] = new Board(boardSize, commandBuilder.access(player.id));
+			initBoard(boards[player.id]);
 		}
 		self.onCommand.dispatch(commandBuilder.finish());
 	}
@@ -48,17 +48,18 @@ function GameController(size, spells, frequencies){
 		board.destroyToken(x, y + 1);
 		order();
 		self.fall(player);
+		commandBuilder.set("endOfTurn", player);
 		if(board.containsShit()){
-			return "next";
+			return {type: "next"};
 		}else{
-			return "end";
+			return {type: "end", player};
 		}
 	}
 	this.fall = function(player){
 		var board = boards[player];
 		board.meta("type", "fall");
-		for(let i = 0; i < size; i++){
-			let j = size - 1;
+		for(let i = 0; i < board.size; i++){
+			let j = board.size - 1;
 			while(j >= 0){
 				if(board.getToken(i, j)){
 					j--;
@@ -113,6 +114,7 @@ function Board(size, commandBuilder){
 	var tokens = [];
 	var cache = new Cache();
 
+	this.size = size;
 	this.meta = commandBuilder.meta;
 	this.getToken = function(x, y){
 		var key = x + "," + y;

@@ -1,20 +1,22 @@
 var Phaser = require("phaser");
 var Promise = require("bluebird");
-var Signal = require("./signal");
+var Signal = require("../util/signal");
 var BoardUIController = require("./boardUIController");
 var Scheduler = require("./scheduler");
 
-module.exports = function(){
+module.exports = function(options){
 	var ui = this;
 	var scheduler = new Scheduler(executeCommand);
 	var started = false;
 
 	function executeCommand(command){
-		//console.log(command);
-		return Promise.all([
-			ui.board.executeCommand(command.board),
-			ui.board2.executeCommand(command.board2)
-		]);
+/*		if(command.endOfTurn){
+			ui.players[command.endOfTurn].g.alpha = 0.8;
+		}*/
+		return Promise.map(
+			Object.keys(ui.players),
+			key => ui.players[key].board.executeCommand(command[key])
+		);
 	} 
 
 	this.obey = scheduler.schedule;
@@ -22,7 +24,7 @@ module.exports = function(){
 
 	this.start = function(width, height){
 		return new Promise(function(resolve, reject){
-			var game = new Phaser.Game(width, height, Phaser.AUTO, '');
+			var game = new Phaser.Game(width, height, Phaser.CANVAS, '');
 
 			game.state.add("game", (function(){
 				var data;
@@ -31,52 +33,90 @@ module.exports = function(){
 						data = data_;
 					},
 					preload(){
-						game.load.image("cell", "assets/cell.png");
-						game.load.image("tokens/fire", "assets/tokens/fire.png");
-						game.load.image("tokens/water", "assets/tokens/water.png");
-						game.load.image("tokens/shit", "assets/tokens/shit.png");
+						game.load.baseURL = "assets/";
+						game.load.bitmapFont("default", "fonts/Book Antiqua.png", "fonts/Book Antiqua.fnt", null, 0, 0);
+						game.load.image("cell", "cell.png");
+						game.load.image("tokens/fire", "tokens/fire.png");
+						game.load.image("tokens/water", "tokens/water.png");
+						game.load.image("tokens/shit", "tokens/shit.png");
 						game.load.start();
 					},
 					create(){
 						game.stage.disableVisibilityChange = true;
 						game.canvas.oncontextmenu = function (e) { e.preventDefault(); }
-						var main = new GameGfx({game, data, rect: new Phaser.Rectangle(0, 0, game.width, game.height)});
-						ui.board = main.board;
-						ui.board2 = main.board2;
+						var main = new Game({game, data, rect: new Phaser.Rectangle(10, 10, game.width - 20, game.height - 20)});
+						ui.players = main.players;
 						started = true;
 						resolve();
 					}
 				}
 			})());
 
-			game.state.start("game", false, false, {cellSize: 64, fieldSize: 7});
+			game.state.start("game", false, false, {
+				cellSize: 64, 
+				boardSize: options.boardSize, 
+				players: options.players
+			});
 		});
 	}
 }
 
-function GameGfx({game, data, rect}){
-	const magic = 2.2;
+function Game({game, data, rect}){
 	var group = game.add.group();
 	group.x = rect.x;
 	group.y = rect.y;
 
-	var board = new BoardGfx({game, group, data});
-	this.board = new BoardUIController(board);
-
-	var board2 = new BoardGfx({game, group, data});
-	this.board2 = new BoardUIController(board2);
-
-	//fuck you. yes, you. fuck. you. this is the only comment you have
-	var ratio = Math.min(rect.width/(magic*board.width), rect.height/board.height);
-	board.g.scale.x = board.g.scale.y = board2.g.scale.x = board2.g.scale.y = ratio;
-	board.g.x = (rect.width - magic*board.width*ratio)/2;
-	board2.g.x = board.g.x + board.width*(magic-1)*ratio;
-	board.g.y = board2.g.y = (rect.height - board.height*ratio)/2;
+	var players = this.players = {};
+	data.players.forEach(
+		function(player, index){
+			players[player.id] = new PlayerSide({
+				game,
+				group,
+				data:{
+					name: player.name,
+					boardSize: data.boardSize,
+					cellSize: data.cellSize
+				},
+				rect: new Phaser.Rectangle(
+					rect.width*index/data.players.length, 
+					0, 
+					rect.width/data.players.length, 
+					rect.height
+				)
+			});
+		}
+	);
 }
 
-function BoardGfx({game, group, data}){
+function PlayerSide({game, group, data, rect}){
+	var g = this.g = game.add.group();
+	group.add(g);
+	g.x = rect.x;
+	g.y = rect.y;
+
+	var playerStats = this.player = new PlayerStats({game, group:g, data});
+	playerStats.g.anchor.x = 0.5;
+	playerStats.g.x = rect.width/2;
+	var boardRect = new Phaser.Rectangle(0, playerStats.g.height*2, rect.width, rect.height - playerStats.g.height*2);
+	var board = this.board = new Board({game, group:g, data});
+	var ratio = Math.min(boardRect.width/board.width, boardRect.height/board.height);
+	board.g.scale.x = board.g.scale.y = ratio;
+	board.g.x = boardRect.centerX - board.width*ratio/2;
+	board.g.y = boardRect.centerY - board.height*ratio/2;
+
+	this.board = new BoardUIController(board);
+}
+
+function PlayerStats({game, group, data}){
+	var g = game.make.bitmapText(0, 0, "default", data.name, 32, group);
+	group.add(g);
+	this.g = g;
+}
+
+function Board({game, group, data}){
+	console.log("board created", data);
 	var board = this;
-	var g = game.add.group();
+	var g = this.g = game.add.group();
 	group.add(g);
 	var backgroundLayer = game.add.group();
 	var tokensLayer = game.add.group();
@@ -84,10 +124,9 @@ function BoardGfx({game, group, data}){
 	g.add(tokensLayer);
 
 	var c = data.cellSize;
-	var n = data.fieldSize;
+	var n = data.boardSize;
 
 	this.width = this.height = n*c;
-	this.g = g;
 	this.onTokenClick = new Signal();
 	this.onTokenHover = new Signal();
 
@@ -113,7 +152,7 @@ function BoardGfx({game, group, data}){
 	}
 
 	this.createToken = function(x, y, {id, type}){
-		var token = new TokenGfx(
+		var token = new Token(
 			{
 				game, 
 				group: tokensLayer, 
@@ -135,7 +174,7 @@ function BoardGfx({game, group, data}){
 
 }
 
-function TokenGfx({game, group, id, type, pos, cellSize, mask, api}){
+function Token({game, group, id, type, pos, cellSize, mask, api}){
 	var self = this;
 	var c = cellSize;
 	var g = game.make.image(pos.x*cellSize, pos.y*c, "tokens/" + type);
@@ -150,7 +189,7 @@ function TokenGfx({game, group, id, type, pos, cellSize, mask, api}){
 				x: pos.x,
 				y: pos.y
 			});
-		}else if(pointer.leftButton.isDown){
+		}else{
 			return api.click({
 				type: "make",
 				x: pos.x,
@@ -199,7 +238,3 @@ function TokenGfx({game, group, id, type, pos, cellSize, mask, api}){
 		});
 	}
 }
-
-/*function AnimationManager(game){
-	this.onAnimationEnded
-}*/

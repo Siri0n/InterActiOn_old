@@ -6,7 +6,7 @@ var source = require("vinyl-source-stream");
 var express = require("express");
 
 var b = browserify({
-	entries: ["main.js"],
+	entries: ["js/main.js"],
 	debug: true,
 	plugin: ["watchify"]
 }).transform(
