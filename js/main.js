@@ -11,12 +11,14 @@ var gameOptions = {
 		{
 			id: "1",
 			name: "First player",
-			type: "local"
+			type: "local",
+			health: 10
 		},
 		{
 			id: "2",
 			name: "Not so first player",
-			type: "local"
+			type: "local",
+			health: 10
 		}
 	]
 }
@@ -33,7 +35,7 @@ p.then(function(){
 			key => new LocalPlayer(key, ui.players[key].board.events)
 		)
 	);
-	pm.gameLoop(gc).then(function(result){
+	gc.gameLoop(pm).then(function(result){
 		ui.onExecuteEnd.addOnce(()=>alert("There's no shit anymore!\nPlayer " + result.player + " wins!"));
 	});
 })

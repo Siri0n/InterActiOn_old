@@ -33,7 +33,6 @@ module.exports = function(board){
 		var meta = data.meta || {};
 		delete data.meta;
 
-		console.log("meta:", meta);
 		if(meta.type == "init"){
 			rename(data, "create", "appear");
 		}
@@ -51,7 +50,6 @@ module.exports = function(board){
 			}
 		}
 		return Promise.map(Object.keys(data), function(key){
-			console.log("!!!!" , key);
 			if(Array.isArray(data[key])){
 				return Promise.map(data[key], methods[key]);
 			}else{

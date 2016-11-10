@@ -23,6 +23,23 @@ function GameController(spells, frequencies){
 		self.onCommand.dispatch(commandBuilder.finish());
 	}
 
+	this.gameLoop = function(playerManager){
+		return playerManager.turn()
+			.then(self.handleTurn)
+			.then(function(result){
+				if(result.type == "next"){
+					playerManager.next();
+					commandBuilder.set("currentPlayer", playerManager.current());
+					order();
+					return self.gameLoop(playerManager);
+				}else if(result.type == "repeat"){
+					return self.gameLoop(playerManager);
+				}else if(result.type == "end"){
+					return result;
+				}
+			})
+	}
+
 	this.init = function({players, boardSize}){
 		boards = {};
 		
@@ -30,14 +47,11 @@ function GameController(spells, frequencies){
 			boards[player.id] = new Board(boardSize, commandBuilder.access(player.id));
 			initBoard(boards[player.id]);
 		}
-		self.onCommand.dispatch(commandBuilder.finish());
+		commandBuilder.set("currentPlayer", players[0].id);
+		order();
 	}
 	this.handleTurn = function(turn){
-		// if(turn.type == "make"){
-		// 	return "end";
-		// }else if(turn.type == "cast"){
-			return self.castSpell(turn);
-		// }
+		 return self.castSpell(turn);
 	}
 	this.castSpell = function({x, y, player}){
 		var board = boards[player];

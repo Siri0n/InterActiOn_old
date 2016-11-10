@@ -13,6 +13,9 @@ module.exports = function(options){
 /*		if(command.endOfTurn){
 			ui.players[command.endOfTurn].g.alpha = 0.8;
 		}*/
+		if(command.currentPlayer){
+			ui.setCurrentPlayer(command.currentPlayer);
+		}
 		return Promise.map(
 			Object.keys(ui.players),
 			key => ui.players[key].board.executeCommand(command[key])
@@ -21,6 +24,12 @@ module.exports = function(options){
 
 	this.obey = scheduler.schedule;
 	this.onExecuteEnd = scheduler.onExecuteEnd;
+
+	this.setCurrentPlayer = function(id){
+		for(let key in ui.players){
+			ui.players[key].g.alpha = (id == key ? 1 : 0.8);
+		}
+	}
 
 	this.start = function(width, height){
 		return new Promise(function(resolve, reject){
@@ -73,7 +82,7 @@ function Game({game, data, rect}){
 				game,
 				group,
 				data:{
-					name: player.name,
+					player,
 					boardSize: data.boardSize,
 					cellSize: data.cellSize
 				},
@@ -94,7 +103,7 @@ function PlayerSide({game, group, data, rect}){
 	g.x = rect.x;
 	g.y = rect.y;
 
-	var playerStats = this.player = new PlayerStats({game, group:g, data});
+	var playerStats = this.player = new PlayerStats({game, group: g, player: data.player});
 	playerStats.g.anchor.x = 0.5;
 	playerStats.g.x = rect.width/2;
 	var boardRect = new Phaser.Rectangle(0, playerStats.g.height*2, rect.width, rect.height - playerStats.g.height*2);
@@ -107,14 +116,23 @@ function PlayerSide({game, group, data, rect}){
 	this.board = new BoardUIController(board);
 }
 
-function PlayerStats({game, group, data}){
-	var g = game.make.bitmapText(0, 0, "default", data.name, 32, group);
+function PlayerStats({game, group, player}){
+	var g = game.make.bitmapText(0, 0, "default", "", 32, group);
 	group.add(g);
 	this.g = g;
+	render();
+
+	function render(){
+		g.text = `${player.name}: ${player.health} health`;
+	}
+
+	this.harm = function(amount){
+		player.health -= amount;
+		render();
+	}
 }
 
 function Board({game, group, data}){
-	console.log("board created", data);
 	var board = this;
 	var g = this.g = game.add.group();
 	group.add(g);

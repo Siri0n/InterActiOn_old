@@ -19,7 +19,6 @@ module.exports = function(execute){
 	this.mute = false;
 
 	this.schedule = function(command){
-		//console.log("schedule", JSON.stringify(command));
 		if(scheduler.mute){
 			return;
 		}
