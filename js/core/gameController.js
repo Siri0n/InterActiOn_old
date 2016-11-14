@@ -1,76 +1,110 @@
 var Signal = require("../util/signal");
 var CommandBuilder = require("./commandBuilder");
-var seedrandom = require("seedrandom");
+var Player = require("./player");
+var PlayerManager = require("./playerManager");
+//var seedrandom = require("seedrandom");
 
-function GameController(spells, frequencies){
+const neighbours = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+function plus(v1, v2){
+	return [v1[0]+v2[0], v1[1]+v2[1]];
+}
+
+function GameController(playersData){
 	var self = this;
 	var commandBuilder = new CommandBuilder();
-	var boards;
-	var typeGen = new TokenTypeGenerator(frequencies);
+	var players = this.players = {};
+	var playerManager;
+	var spellBook = new SpellBook();
 
 	this.onCommand = new Signal();
 
-	function initBoard(board){
-		board.meta("type", "init");
-		for(let i = 0; i < board.size; i++){
-			for(let j = 0; j < board.size; j++){
-				board.createToken(i, j, typeGen.getType());
-			}
+	this.init = function(){
+		for(let data of playersData){
+			let player = players[data.id] = new Player(data, commandBuilder.access(data.id));
+			player.board.meta("type", "init");
+			player.board.forEachCell(function(i, j){
+				player.board.createToken(i, j, player.getRandomType());
+			})
 		}
+		playerManager = self.playerManager = new PlayerManager(Object.keys(players).map(key => players[key]));
+		commandBuilder.set("currentPlayer", playerManager.current().id);
+		order();
+	}
+
+	this.currentPlayer = function(){
+		return playerManager.current();
+	}
+
+	this.currentTarget = function(){
+		return playerManager.target();
 	}
 
 	function order(){
 		self.onCommand.dispatch(commandBuilder.finish());
 	}
 
-	this.gameLoop = function(playerManager){
+	this.order = order;
+	this.gameLoop = function(){
 		return playerManager.turn()
 			.then(self.handleTurn)
 			.then(function(result){
 				if(result.type == "next"){
 					playerManager.next();
-					commandBuilder.set("currentPlayer", playerManager.current());
+					commandBuilder.set("currentPlayer", playerManager.current().id);
 					order();
-					return self.gameLoop(playerManager);
+					return self.gameLoop();
 				}else if(result.type == "repeat"){
-					return self.gameLoop(playerManager);
+					return self.gameLoop();
 				}else if(result.type == "end"){
 					return result;
 				}
 			})
 	}
 
-	this.init = function({players, boardSize}){
-		boards = {};
-		
-		for(let player of players){
-			boards[player.id] = new Board(boardSize, commandBuilder.access(player.id));
-			initBoard(boards[player.id]);
-		}
-		commandBuilder.set("currentPlayer", players[0].id);
-		order();
-	}
 	this.handleTurn = function(turn){
-		 return self.castSpell(turn);
+		spellBook.castSpell(self, turn);
+		if(self.currentTarget().health > 0){
+			return {type: "next"};
+		}else{
+			return {type: "end", player:turn.player};
+		}
+		 //return spellBook.castSpell(self, turn);
 	}
-	this.castSpell = function({x, y, player}){
-		var board = boards[player];
+/*	this.castSpell = function({x, y, player:id}){
+		return spellBook.castSpell(this, x, y, id);
+		var board = players[id].board;
 		board.destroyToken(x, y);
 		board.destroyToken(x - 1, y);
 		board.destroyToken(x, y - 1);
 		board.destroyToken(x + 1, y);
 		board.destroyToken(x, y + 1);
 		order();
-		self.fall(player);
-		commandBuilder.set("endOfTurn", player);
+		self.fall(id);
 		if(board.containsShit()){
 			return {type: "next"};
 		}else{
-			return {type: "end", player};
+			return {type: "end", player:id};
 		}
+	}*/
+	this.destroyConnected = function(x, y, id){
+		var board = players[id].board;
+		var type = board.getToken(x, y).type;
+		var coords = [[x, y]];
+		var coord;
+		var count = 0;
+		while(coord = coords.shift()){
+			let token = board.getToken(...coord);
+			if(token && (token.type == type)){
+				board.destroyToken(...coord);
+				count++;
+				neighbours.map(v => plus(v, coord)).forEach(v => coords.push(v));
+			}
+		}
+		return {type, count};
 	}
-	this.fall = function(player){
-		var board = boards[player];
+	this.fall = function(id){
+		var player = players[id];
+		var board = player.board;
 		board.meta("type", "fall");
 		for(let i = 0; i < board.size; i++){
 			let j = board.size - 1;
@@ -92,119 +126,25 @@ function GameController(spells, frequencies){
 				}
 			}
 			while(j >= 0){
-				board.createToken(i, j, typeGen.getType());
+				board.createToken(i, j, player.getRandomType());
 				j--;
 			}
 		}
-		order();
 	}
 }
 
 module.exports = GameController;
 
-function TokenTypeGenerator(frequencies){
-	var rnd = seedrandom("test");
-
-	this.randomize = function(seed){
-		rnd = seedrandom(seed);
-	}
-
-	this.getType = function(){
-		var freq = Object.keys(frequencies).map(key => ({type: key, value: frequencies[key]}));
-		var totalFreq = freq.reduce(((a, f) => a + f.value), 0);
-		var r = rnd();
-		var n = 0;
-		for(let f of freq){
-			n += f.value/totalFreq;
-			if(n >= r){
-				return f.type;
-			}
+function SpellBook(){
+	this.castSpell = function(api, {x, y, player}){
+		var {type, count} = api.destroyConnected(x, y, player);
+		if(type == "fire"){
+			api.currentTarget().damage(count);
+		}else if(type == "water"){
+			api.currentPlayer().heal(count);
 		}
+		api.order();
+		api.fall(player);
+		api.order();
 	}
-}
-
-function Board(size, commandBuilder){
-	var board = this;
-	var tokens = [];
-	var cache = new Cache();
-
-	this.size = size;
-	this.meta = commandBuilder.meta;
-	this.getToken = function(x, y){
-		var key = x + "," + y;
-		var cachedResult = cache.get(key);
-		if(cachedResult){
-			return cachedResult;
-		}
-		var result = tokens.find(token => token.x == x && token.y == y);
-		if(result){
-			return cache.set(key, result);
-		}else{
-			return null;
-		}
-	}
-
-	this.moveToken = function(x0, y0, x1, y1){
-		var token = board.getToken(x0, y0);
-		if(token){
-			token.x = x1;
-			token.y = y1;
-			cache.invalidate();
-			commandBuilder.put("move", {id: token.id, x: x1, y: y1});
-		}else{
-			console.log("token not found at " + x + " " + y);
-		}
-	}
-
-	this.destroyToken = function(x, y){
-		var token = board.getToken(x, y);
-		if(token){
-			remove(tokens, token);
-			cache.invalidate();
-			commandBuilder.put("vanish", {id: token.id});
-		}else{
-			console.log("token not found at " + x + " " + y);
-		}
-	}
-
-	this.createToken = function(x, y, type){
-		var token = new Token(x, y, type);
-		tokens.push(token);
-		commandBuilder.put("create", {id: token.id, x, y, type});
-	}
-
-	this.containsShit = function(){
-		return tokens.some(token => token.type == "shit");
-	}
-}
-
-function Token(x, y, type){
-	this.x = x;
-	this.y = y;
-	this.type = type;
-	this.id = generateNewId();
-}
-
-function Cache(){
-	var cache = Object.create(null);
-	this.get = function(key){
-		return cache[key];
-	}
-	this.set = function(key, val){
-		cache[key] = val;
-		return val;
-	}
-	this.invalidate = function(){
-		cache = Object.create(null);
-	}
-}
-
-function remove(arr, elem){
-	var i = arr.indexOf(elem);
-	~i && arr.splice(i, 1);
-}
-
-var lastId = 1;
-function generateNewId(){
-	return lastId++;
 }

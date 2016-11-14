@@ -1,41 +1,45 @@
-module.exports = function(){
+module.exports = CommandBuilder;
+
+function CommandBuilder(root, path){
 	var self = this;
 
-	this.command = Object.create(null);
-
-	Accessor.call(self, self, "");
-	this.access = function(path){
-		return new Accessor(self, path);
+	if(!root){
+		root = Object.create(null);
+		path = "$";
+		this.finish = function(){
+			var tmp = root.$;
+			root.$ = Object.create(null);
+			return tmp;
+		}
 	}
-	this.finish = function(){
-		console.log(self.command);
-		var tmp = self.command;
-		self.command = Object.create(null);
-		return tmp;
-	}
-}
 
-function Accessor(builder, path){
+	this.access = function(subpath){
+		return new CommandBuilder(root, path + "." + subpath);
+	}
+
 	this.set = function(key, value){
+		//console.log("set", key, value);
 		if(key == "meta"){
 			throw new Error("'meta' field is protected");
 		}
-		var target = get(builder.command, path);
+		var target = get(root, path);
 		target[key] = value;
 	}
+
 	this.put = function(key, value){
+		//console.log("put", key, value);
 		if(key == "meta"){
 			throw new Error("'meta' field is protected");
 		}
-		var target = get(builder.command, path);
+		var target = get(root, path);
 		if(!Array.isArray(target[key])){
 			target[key] = [];
 		}
 		target[key].push(value);
-
 	}
 	this.meta = function(key, value){
-		var target = get(builder.command, path);
+		//console.log("meta", key, value);
+		var target = get(root, path);
 		target.meta = target.meta || Object.create(null);
 		target.meta[key] = value;
 	}

@@ -4,21 +4,19 @@ var Signal = require("../util/signal");
 var BoardUIController = require("./boardUIController");
 var Scheduler = require("./scheduler");
 
-module.exports = function(options){
+module.exports = function(players){
 	var ui = this;
 	var scheduler = new Scheduler(executeCommand);
 	var started = false;
 
 	function executeCommand(command){
-/*		if(command.endOfTurn){
-			ui.players[command.endOfTurn].g.alpha = 0.8;
-		}*/
 		if(command.currentPlayer){
 			ui.setCurrentPlayer(command.currentPlayer);
 		}
+		console.log(command);
 		return Promise.map(
 			Object.keys(ui.players),
-			key => ui.players[key].board.executeCommand(command[key])
+			key => command[key] && ui.players[key].executeCommand(command[key])
 		);
 	} 
 
@@ -63,8 +61,7 @@ module.exports = function(options){
 
 			game.state.start("game", false, false, {
 				cellSize: 64, 
-				boardSize: options.boardSize, 
-				players: options.players
+				players
 			});
 		});
 	}
@@ -83,7 +80,7 @@ function Game({game, data, rect}){
 				group,
 				data:{
 					player,
-					boardSize: data.boardSize,
+					boardSize: player.boardSize,
 					cellSize: data.cellSize
 				},
 				rect: new Phaser.Rectangle(
@@ -98,6 +95,7 @@ function Game({game, data, rect}){
 }
 
 function PlayerSide({game, group, data, rect}){
+	var self = this;
 	var g = this.g = game.add.group();
 	group.add(g);
 	g.x = rect.x;
@@ -114,21 +112,24 @@ function PlayerSide({game, group, data, rect}){
 	board.g.y = boardRect.centerY - board.height*ratio/2;
 
 	this.board = new BoardUIController(board);
+
+	this.executeCommand = function(command){
+		command.health && playerStats.setHealth(command.health);
+		return command.board && self.board.executeCommand(command.board);
+	}
 }
 
-function PlayerStats({game, group, player}){
+function PlayerStats({game, group, player:{name, health}}){
 	var g = game.make.bitmapText(0, 0, "default", "", 32, group);
 	group.add(g);
 	this.g = g;
 	render();
-
-	function render(){
-		g.text = `${player.name}: ${player.health} health`;
-	}
-
-	this.harm = function(amount){
-		player.health -= amount;
+	this.setHealth = function(newHealth){
+		health = newHealth;
 		render();
+	}
+	function render(){
+		g.text = `${name}: ${health} health`;
 	}
 }
 

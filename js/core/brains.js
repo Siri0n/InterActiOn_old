@@ -1,6 +1,6 @@
-var Promise = require("bluebird");
+module.exports = {Local};
 
-module.exports = function(id, UIEvents){
+function Local(id, UIEvents){
 	this.id = id;
 	this.nextTurn = function(){
 		return new Promise(function(resolve, reject){

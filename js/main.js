@@ -1,42 +1,47 @@
 var UI = require("./ui/ui");
 var GameController = require("./core/gameController");
 var Promise = require("bluebird");
-var LocalPlayer = require("./core/localPlayer");
-var PlayerManager = require("./core/playerManager");
+var brains = require("./core/brains");
+
 
 
 var gameOptions = {
-	boardSize: 7,
+	defaults: {
+		boardSize: 7,
+		spectrum: {fire: 4, water: 3, shit: 1}
+	},
 	players: [
 		{
 			id: "1",
 			name: "First player",
 			type: "local",
-			health: 10
+			health: 20
 		},
 		{
 			id: "2",
 			name: "Not so first player",
 			type: "local",
-			health: 10
+			health: 20
 		}
 	]
 }
 
-var ui = new UI(gameOptions);
-var gc = new GameController(null, {fire: 3, water: 3, shit: 1});
+var players = gameOptions.players.map(
+	player =>  Object.assign({}, gameOptions.defaults, player)
+);
 
-var p = ui.start(1200, 600);
-p.then(function(){
+var ui = new UI(players);
+
+ui.start(1200, 600).then(function(){
+	for(let player of players){
+		player.brain = new brains.Local(player.id, ui.players[player.id].board.events); // for now
+	}
+	var gc = new GameController(players);
 	gc.onCommand.add(ui.obey);
-	gc.init(gameOptions);
-	var pm = new PlayerManager(
-		...Object.keys(ui.players).map(
-			key => new LocalPlayer(key, ui.players[key].board.events)
-		)
-	);
-	gc.gameLoop(pm).then(function(result){
-		ui.onExecuteEnd.addOnce(()=>alert("There's no shit anymore!\nPlayer " + result.player + " wins!"));
+	gc.init();
+	gc.gameLoop().then(function(result){
+		console.log("RESUKLT", result);
+		ui.onExecuteEnd.addOnce(()=>alert("Player " + result.player + " wins!"));
 	});
 })
 
