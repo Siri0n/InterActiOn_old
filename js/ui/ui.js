@@ -3,6 +3,7 @@ var Promise = require("bluebird");
 var Signal = require("../util/signal");
 var BoardUIController = require("./boardUIController");
 var Scheduler = require("./scheduler");
+var spellDescriptions = require("./spellDescriptions");
 
 module.exports = function(players){
 	var ui = this;
@@ -13,11 +14,15 @@ module.exports = function(players){
 		if(command.currentPlayer){
 			ui.setCurrentPlayer(command.currentPlayer);
 		}
-		console.log(command);
-		return Promise.map(
-			Object.keys(ui.players),
-			key => command[key] && ui.players[key].executeCommand(command[key])
-		);
+		console.log("SPELL", command.spell);
+		return Promise.all([
+			...Promise.map(
+				Object.keys(ui.players),
+				key => command[key] && ui.players[key].executeCommand(command[key])
+			),
+			command.spell && command.spell.id && 
+				ui.spellMessage.showText(spellDescriptions[command.spell.id])
+		])
 	} 
 
 	this.obey = scheduler.schedule;
@@ -41,8 +46,9 @@ module.exports = function(players){
 					},
 					preload(){
 						game.load.baseURL = "assets/";
-						game.load.bitmapFont("default", "fonts/Book Antiqua.png", "fonts/Book Antiqua.fnt", null, 0, 0);
+						game.load.bitmapFont("default", "fonts/Book Antiqua_0.png", "fonts/Book Antiqua.fnt", null, 0, 0);
 						game.load.image("cell", "cell.png");
+						game.load.image("splash", "messageBackground.png");
 						game.load.image("tokens/fire", "tokens/fire.png");
 						game.load.image("tokens/water", "tokens/water.png");
 						game.load.image("tokens/shit", "tokens/shit.png");
@@ -53,6 +59,7 @@ module.exports = function(players){
 						game.canvas.oncontextmenu = function (e) { e.preventDefault(); }
 						var main = new Game({game, data, rect: new Phaser.Rectangle(10, 10, game.width - 20, game.height - 20)});
 						ui.players = main.players;
+						ui.spellMessage = main.spellMessage;
 						started = true;
 						resolve();
 					}
@@ -78,7 +85,7 @@ function Game({game, data, rect}){
 			players[player.id] = new PlayerSide({
 				game,
 				group,
-				data:{
+				data: {
 					player,
 					boardSize: player.boardSize,
 					cellSize: data.cellSize
@@ -92,6 +99,41 @@ function Game({game, data, rect}){
 			});
 		}
 	);
+
+	var spellMessage = this.spellMessage = new SplashScreen({
+		game,
+		group,
+		rect: new Phaser.Rectangle(
+			rect.x + rect.width/4, 
+			rect.y + rect.height/4,
+			rect.width/2,
+			rect.height/2
+		)
+	})
+}
+
+function SplashScreen({game, group, rect}){
+	var g = game.make.image(rect.x, rect.y, "splash");
+	group.add(g);
+	g.scale.x = rect.width/g.width;
+	g.scale.y = rect.height/g.height;
+	var message = game.make.bitmapText(rect.width/2, rect.height/2, "default", "You shouldn't see it.\n Now you're cursed.", 32);
+	message.anchor.x = message.anchor.y = 0.5;
+	message.tint = 0;
+	g.addChild(message);
+	g.alpha = 0;
+	this.showText = window.test = function(text){
+		message.text = text;
+		return new Promise(function(resolve, reject){
+			game.add.tween(g)
+			.to({alpha: 1}, 500, Phaser.Easing.Exponential.In, true)
+			.chain(
+				game.add.tween(g)
+				.to({alpha: 0}, 500, Phaser.Easing.Exponential.In)
+				.delay(300)
+			).onComplete.add(resolve);
+		});
+	}
 }
 
 function PlayerSide({game, group, data, rect}){

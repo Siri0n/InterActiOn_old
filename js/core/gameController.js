@@ -12,6 +12,7 @@ function plus(v1, v2){
 function GameController(playersData){
 	var self = this;
 	var commandBuilder = new CommandBuilder();
+	this.spellCommand = commandBuilder.access("spell");
 	var players = this.players = {};
 	var playerManager;
 	var spellBook = new SpellBook();
@@ -140,8 +141,10 @@ function SpellBook(){
 		var {type, count} = api.destroyConnected(x, y, player);
 		if(type == "fire"){
 			api.currentTarget().damage(count);
+			api.spellCommand.set("id", "fireArrow");
 		}else if(type == "water"){
 			api.currentPlayer().heal(count);
+			api.spellCommand.set("id", "healingWater");
 		}
 		api.order();
 		api.fall(player);
