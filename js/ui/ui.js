@@ -14,15 +14,14 @@ module.exports = function(players){
 		if(command.currentPlayer){
 			ui.setCurrentPlayer(command.currentPlayer);
 		}
-		console.log("SPELL", command.spell);
-		return Promise.all([
-			...Promise.map(
-				Object.keys(ui.players),
-				key => command[key] && ui.players[key].executeCommand(command[key])
-			),
-			command.spell && command.spell.id && 
-				ui.spellMessage.showText(spellDescriptions[command.spell.id])
-		])
+		command.spell && 
+			ui.bottomMessage.showText(spellDescriptions[command.spell]);
+		command.winner && 
+			ui.bottomMessage.showText(ui.players[command.winner].name + " wins!");
+		return Promise.map(
+			Object.keys(ui.players),
+			key => command[key] && ui.players[key].executeCommand(command[key])
+		)
 	} 
 
 	this.obey = scheduler.schedule;
@@ -51,7 +50,8 @@ module.exports = function(players){
 						game.load.image("splash", "messageBackground.png");
 						game.load.image("tokens/fire", "tokens/fire.png");
 						game.load.image("tokens/water", "tokens/water.png");
-						game.load.image("tokens/shit", "tokens/shit.png");
+						game.load.image("tokens/earth", "tokens/earth.png");
+						game.load.image("tokens/air", "tokens/air.png");
 						game.load.start();
 					},
 					create(){
@@ -59,7 +59,7 @@ module.exports = function(players){
 						game.canvas.oncontextmenu = function (e) { e.preventDefault(); }
 						var main = new Game({game, data, rect: new Phaser.Rectangle(10, 10, game.width - 20, game.height - 20)});
 						ui.players = main.players;
-						ui.spellMessage = main.spellMessage;
+						ui.bottomMessage = main.bottomMessage;
 						started = true;
 						resolve();
 					}
@@ -91,48 +91,42 @@ function Game({game, data, rect}){
 					cellSize: data.cellSize
 				},
 				rect: new Phaser.Rectangle(
-					rect.width*index/data.players.length, 
+					rect.width*index/data.players.length + 10, 
 					0, 
-					rect.width/data.players.length, 
-					rect.height
+					rect.width/data.players.length - 20, 
+					rect.height - 100
 				)
 			});
 		}
 	);
 
-	var spellMessage = this.spellMessage = new SplashScreen({
+	var bottomMessage = this.bottomMessage = new TextBlock({
 		game,
 		group,
 		rect: new Phaser.Rectangle(
-			rect.x + rect.width/4, 
-			rect.y + rect.height/4,
-			rect.width/2,
-			rect.height/2
+			100, 
+			rect.height - 100,
+			rect.width - 200,
+			100
 		)
 	})
 }
 
-function SplashScreen({game, group, rect}){
-	var g = game.make.image(rect.x, rect.y, "splash");
+function TextBlock({game, group, rect}){
+	var g = game.add.group();
 	group.add(g);
-	g.scale.x = rect.width/g.width;
-	g.scale.y = rect.height/g.height;
-	var message = game.make.bitmapText(rect.width/2, rect.height/2, "default", "You shouldn't see it.\n Now you're cursed.", 32);
+	g.x = rect.x;
+	g.y = rect.y;
+	var background = game.make.image(0, 0, "splash");
+	g.add(background);
+	background.width = rect.width;
+	background.height = rect.height;
+	var message = game.make.bitmapText(rect.width/2, rect.height/2, "default", "Heaven or Hell?\nLet's rock!", 32);
 	message.anchor.x = message.anchor.y = 0.5;
 	message.tint = 0;
-	g.addChild(message);
-	g.alpha = 0;
-	this.showText = window.test = function(text){
+	g.add(message);
+	this.showText = function(text){
 		message.text = text;
-		return new Promise(function(resolve, reject){
-			game.add.tween(g)
-			.to({alpha: 1}, 500, Phaser.Easing.Exponential.In, true)
-			.chain(
-				game.add.tween(g)
-				.to({alpha: 0}, 500, Phaser.Easing.Exponential.In)
-				.delay(300)
-			).onComplete.add(resolve);
-		});
 	}
 }
 
@@ -153,15 +147,17 @@ function PlayerSide({game, group, data, rect}){
 	board.g.x = boardRect.centerX - board.width*ratio/2;
 	board.g.y = boardRect.centerY - board.height*ratio/2;
 
+	this.name = data.player.name;
 	this.board = new BoardUIController(board);
 
 	this.executeCommand = function(command){
-		command.health && playerStats.setHealth(command.health);
+		"health" in command && playerStats.setHealth(command.health);
+		"shield" in command && playerStats.setShield(command.shield);
 		return command.board && self.board.executeCommand(command.board);
 	}
 }
 
-function PlayerStats({game, group, player:{name, health}}){
+function PlayerStats({game, group, player:{name, health, shield}}){
 	var g = game.make.bitmapText(0, 0, "default", "", 32, group);
 	group.add(g);
 	this.g = g;
@@ -170,8 +166,12 @@ function PlayerStats({game, group, player:{name, health}}){
 		health = newHealth;
 		render();
 	}
+	this.setShield = function(newShield){
+		shield = newShield;
+		render();
+	}
 	function render(){
-		g.text = `${name}: ${health} health`;
+		g.text = `${name}: ${health} health, ${shield} shield`;
 	}
 }
 
@@ -284,7 +284,7 @@ function Token({game, group, id, type, pos, cellSize, mask, api}){
 	}
 	this.fadeOut = function(){
 		return new Promise(function(resolve, reject){
-			game.add.tween(g).to({alpha: 0}, time, easing, true)
+			game.add.tween(g).to({alpha: 0}, time/2, easing, true)
 			.onComplete.add(resolve);
 		});
 	}

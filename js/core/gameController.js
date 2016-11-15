@@ -11,8 +11,7 @@ function plus(v1, v2){
 
 function GameController(playersData){
 	var self = this;
-	var commandBuilder = new CommandBuilder();
-	this.spellCommand = commandBuilder.access("spell");
+	var commandBuilder = this.commandBuilder = new CommandBuilder();
 	var players = this.players = {};
 	var playerManager;
 	var spellBook = new SpellBook();
@@ -67,6 +66,8 @@ function GameController(playersData){
 		if(self.currentTarget().health > 0){
 			return {type: "next"};
 		}else{
+			commandBuilder.set("winner", self.currentPlayer().id);
+			order();
 			return {type: "end", player:turn.player};
 		}
 		 //return spellBook.castSpell(self, turn);
@@ -106,7 +107,7 @@ function GameController(playersData){
 	this.fall = function(id){
 		var player = players[id];
 		var board = player.board;
-		board.meta("type", "fall");
+		var falls = false;
 		for(let i = 0; i < board.size; i++){
 			let j = board.size - 1;
 			while(j >= 0){
@@ -114,6 +115,7 @@ function GameController(playersData){
 					j--;
 					continue;
 				}else{
+					falls = true;
 					let k = j - 1;
 					while(k > 0 && !board.getToken(i, k)){
 						k--;
@@ -130,7 +132,12 @@ function GameController(playersData){
 				board.createToken(i, j, player.getRandomType());
 				j--;
 			}
+			falls && board.meta("type", "fall");
 		}
+	}
+	this.fallBoth = function(){
+		self.fall(self.currentPlayer().id);
+		self.fall(self.currentTarget().id);
 	}
 }
 
@@ -139,15 +146,51 @@ module.exports = GameController;
 function SpellBook(){
 	this.castSpell = function(api, {x, y, player}){
 		var {type, count} = api.destroyConnected(x, y, player);
-		if(type == "fire"){
-			api.currentTarget().damage(count);
-			api.spellCommand.set("id", "fireArrow");
-		}else if(type == "water"){
-			api.currentPlayer().heal(count);
-			api.spellCommand.set("id", "healingWater");
-		}
+		var spell = spells[type][index(count)];
+		api.commandBuilder.set("spell", spell.name);
+		spell.effect(api, {x, y, player, count});
 		api.order();
-		api.fall(player);
+		api.fallBoth();
 		api.order();
 	}
+}
+
+function index(count){
+	return 0;
+}
+
+var spells = {
+	fire: [
+		{
+			name: "burningArrow",
+			effect(api, {x, y, player, count}){
+				api.currentTarget().damageShield(count);
+				api.currentTarget().damage(Math.ceil(count/2));
+			}
+		}
+	],
+	water: [
+		{
+			name: "healingWater",
+			effect(api, {x, y, player, count}){
+				api.currentPlayer().heal(count);
+			}
+		}
+	],
+	earth: [
+		{
+			name: "earthShield",
+			effect(api, {x, y, player, count}){
+				api.currentPlayer().addShield(count);
+			}
+		}
+	],
+	air: [
+		{
+			name: "lightning",
+			effect(api, {x, y, player, count}){
+				api.currentTarget().damage(count);
+			}
+		}
+	]
 }
