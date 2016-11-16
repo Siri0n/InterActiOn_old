@@ -2,7 +2,6 @@ module.exports = {
 	burningArrow: "Burning Arrow.\n Deals shield damage equal to tokens number.\nThen deals half of that damage, rounded up.",
 	lightning: "Lightning.\n Deals damage equal to tokens number.",
 	healingWater: "Healing Water.\n Heals damage equal to token number.",
-	govnaSamovar: "Samovar of Shit.\n Does nothing",
 	blackCliffs: "Tusks of Black Cliffs.\n",
 	icarus: "Icarus.\n",
 	playWithFire: "Play with Fire.\n",

@@ -3,7 +3,7 @@ var Promise = require("bluebird");
 var Signal = require("../util/signal");
 var BoardUIController = require("./boardUIController");
 var Scheduler = require("./scheduler");
-var spellDescriptions = require("./spellDescriptions");
+var locale = require("./locale").ru;
 
 module.exports = function(players){
 	var ui = this;
@@ -15,7 +15,7 @@ module.exports = function(players){
 			ui.setCurrentPlayer(command.currentPlayer);
 		}
 		command.spell && 
-			ui.bottomMessage.showText(spellDescriptions[command.spell]);
+			ui.bottomMessage.showText(locale[command.spell]);
 		command.winner && 
 			ui.bottomMessage.showText(ui.players[command.winner].name + " wins!");
 		return Promise.map(
@@ -52,6 +52,8 @@ module.exports = function(players){
 						game.load.image("tokens/water", "tokens/water.png");
 						game.load.image("tokens/earth", "tokens/earth.png");
 						game.load.image("tokens/air", "tokens/air.png");
+						game.load.image("icons/health", "icons/health.png");
+						game.load.image("icons/shield", "icons/shield.png");
 						game.load.start();
 					},
 					create(){
@@ -60,6 +62,7 @@ module.exports = function(players){
 						var main = new Game({game, data, rect: new Phaser.Rectangle(10, 10, game.width - 20, game.height - 20)});
 						ui.players = main.players;
 						ui.bottomMessage = main.bottomMessage;
+						window.test = ui.bottomMessage.showText;
 						started = true;
 						resolve();
 					}
@@ -121,11 +124,13 @@ function TextBlock({game, group, rect}){
 	g.add(background);
 	background.width = rect.width;
 	background.height = rect.height;
-	var message = game.make.bitmapText(rect.width/2, rect.height/2, "default", "Heaven or Hell?\nLet's rock!", 32);
+	var message = game.make.bitmapText(rect.width/2, rect.height/2, "default", locale.lightning, 32);
 	message.anchor.x = message.anchor.y = 0.5;
 	message.tint = 0;
 	g.add(message);
 	this.showText = function(text){
+		message.text = "";
+		message.purgeGlyphs();
 		message.text = text;
 	}
 }
@@ -137,10 +142,9 @@ function PlayerSide({game, group, data, rect}){
 	g.x = rect.x;
 	g.y = rect.y;
 
-	var playerStats = this.player = new PlayerStats({game, group: g, player: data.player});
-	playerStats.g.anchor.x = 0.5;
-	playerStats.g.x = rect.width/2;
-	var boardRect = new Phaser.Rectangle(0, playerStats.g.height*2, rect.width, rect.height - playerStats.g.height*2);
+	var playerStats = this.player = new PlayerStats({game, group: g, player: data.player, width: rect.width});
+
+	var boardRect = new Phaser.Rectangle(0, playerStats.height*2, rect.width, rect.height - playerStats.height*2);
 	var board = this.board = new Board({game, group:g, data});
 	var ratio = Math.min(boardRect.width/board.width, boardRect.height/board.height);
 	board.g.scale.x = board.g.scale.y = ratio;
@@ -157,21 +161,53 @@ function PlayerSide({game, group, data, rect}){
 	}
 }
 
-function PlayerStats({game, group, player:{name, health, shield}}){
-	var g = game.make.bitmapText(0, 0, "default", "", 32, group);
+function PlayerStats({game, group, player:{name, health, shield}, width}){
+	var g = game.add.group();
 	group.add(g);
-	this.g = g;
-	render();
-	this.setHealth = function(newHealth){
-		health = newHealth;
-		render();
+	var text = game.make.bitmapText(0, 0, "default", name, 32, g);
+	g.add(text);
+	text.anchor.x = 0.5;
+	text.x = width/2;
+
+	var statBoxes = {
+		health: new StatBox({game, group:g, x:width/3 - 30, y:40, params:{stat:health, img:"icons/health"}}),
+		shield: new StatBox({game, group:g, x:2*width/3 - 30, y:40, params:{stat:shield, img:"icons/shield"}})
 	}
-	this.setShield = function(newShield){
-		shield = newShield;
-		render();
+	this.height = 40;
+	this.setHealth = function(arg){
+		statBoxes.health.update(arg);
+	}
+	this.setShield = function(arg){
+		statBoxes.shield.update(arg);
 	}
 	function render(){
 		g.text = `${name}: ${health} health, ${shield} shield`;
+	}
+}
+
+function StatBox({game, group, x, y, params: {stat, maxStat, img, hint}}){
+	var g = game.add.group();
+	group.add(g);
+	g.x = x; 
+	g.y = y;
+
+	var text = game.make.bitmapText(0, 0, "default", "", 32, g);
+	g.add(text);
+	//text.tint = font.tint;
+
+	var icon = game.make.image(0, 0, img);
+	g.add(icon);
+	render();
+
+	function render(){
+		text.text = maxStat ? `${stat}/${maxStat}` : `${stat}`;
+		icon.alignTo(text, Phaser.RIGHT_TOP, 5, 0);
+	}
+
+	this.update = function(stat_, maxStat_){
+		stat = stat_;
+		maxStat = maxStat_;
+		render();
 	}
 }
 
