@@ -78,9 +78,21 @@ module.exports = function(players){
 }
 
 function Game({game, data, rect}){
+	var self = this;
 	var group = game.add.group();
 	group.x = rect.x;
 	group.y = rect.y;
+
+	var bottomMessage = this.bottomMessage = new TextBlock({
+		game,
+		group,
+		rect: new Phaser.Rectangle(
+			100, 
+			rect.height - 100,
+			rect.width - 200,
+			100
+		)
+	})
 
 	var players = this.players = {};
 	data.players.forEach(
@@ -88,6 +100,9 @@ function Game({game, data, rect}){
 			players[player.id] = new PlayerSide({
 				game,
 				group,
+				api: {
+					showText: text => bottomMessage.showText(text)
+				},
 				data: {
 					player,
 					boardSize: player.boardSize,
@@ -102,17 +117,6 @@ function Game({game, data, rect}){
 			});
 		}
 	);
-
-	var bottomMessage = this.bottomMessage = new TextBlock({
-		game,
-		group,
-		rect: new Phaser.Rectangle(
-			100, 
-			rect.height - 100,
-			rect.width - 200,
-			100
-		)
-	})
 }
 
 function TextBlock({game, group, rect}){
@@ -124,7 +128,7 @@ function TextBlock({game, group, rect}){
 	g.add(background);
 	background.width = rect.width;
 	background.height = rect.height;
-	var message = game.make.bitmapText(rect.width/2, rect.height/2, "default", locale.lightning, 32);
+	var message = game.make.bitmapText(rect.width/2, rect.height/2, "default", "Let's rock!", 32);
 	message.anchor.x = message.anchor.y = 0.5;
 	message.tint = 0;
 	g.add(message);
@@ -135,14 +139,14 @@ function TextBlock({game, group, rect}){
 	}
 }
 
-function PlayerSide({game, group, data, rect}){
+function PlayerSide({game, group, api, data, rect}){
 	var self = this;
 	var g = this.g = game.add.group();
 	group.add(g);
 	g.x = rect.x;
 	g.y = rect.y;
 
-	var playerStats = this.player = new PlayerStats({game, group: g, player: data.player, width: rect.width});
+	var playerStats = this.player = new PlayerStats({game, group: g, api, player: data.player, width: rect.width});
 
 	var boardRect = new Phaser.Rectangle(0, playerStats.height*2, rect.width, rect.height - playerStats.height*2);
 	var board = this.board = new Board({game, group:g, data});
@@ -161,7 +165,7 @@ function PlayerSide({game, group, data, rect}){
 	}
 }
 
-function PlayerStats({game, group, player:{name, health, shield}, width}){
+function PlayerStats({game, group, api, player:{name, health, shield}, width}){
 	var g = game.add.group();
 	group.add(g);
 	var text = game.make.bitmapText(0, 0, "default", name, 32, g);
@@ -169,27 +173,58 @@ function PlayerStats({game, group, player:{name, health, shield}, width}){
 	text.anchor.x = 0.5;
 	text.x = width/2;
 
-	var statBoxes = {
-		health: new StatBox({game, group:g, x:width/3 - 30, y:40, params:{stat:health, img:"icons/health"}}),
-		shield: new StatBox({game, group:g, x:2*width/3 - 30, y:40, params:{stat:shield, img:"icons/shield"}})
-	}
+	var container = new StatBoxContainer({game, group:g, api, center: {x: width/2, y: 60}, spacing: 20,
+		statBoxData:[
+			{id: "health", value: health},
+			{id: "shield", value: shield}
+		]
+	});
 	this.height = 40;
 	this.setHealth = function(arg){
-		statBoxes.health.update(arg);
+		container.boxes.health.update(arg);
+		container.update();
 	}
 	this.setShield = function(arg){
-		statBoxes.shield.update(arg);
-	}
-	function render(){
-		g.text = `${name}: ${health} health, ${shield} shield`;
+		container.boxes.shield.update(arg);
+		container.update();
 	}
 }
 
-function StatBox({game, group, x, y, params: {stat, maxStat, img, hint}}){
+function StatBoxContainer({game, group, api, spacing, statBoxData, center: {x, y}}){
+	var self = this;
+	this.boxes = {};
+	var boxes = [];
 	var g = game.add.group();
 	group.add(g);
-	g.x = x; 
-	g.y = y;
+
+	var boxes = statBoxData.map(
+		data => self.boxes[data.id] = new StatBox({game, group:g, api, params: {
+			stat: data.value, 
+			maxStat:  data.maxValue,
+			hint: data.id + "_hint",
+			img: "icons/" + data.id 
+		}})
+	)
+
+	this.update = function(spacing_ = spacing){
+		var edge = 0;
+		var maxHeight = 0;
+		for(let box of boxes){
+			box.g.x = edge;
+			edge += box.width + spacing_;
+			maxHeight = Math.max(maxHeight, box.g.getBounds().height);
+		}
+		edge -= spacing_;
+		g.x = x - edge/2;
+		g.y = y - maxHeight/2;
+	}
+	self.update(spacing);
+}
+
+function StatBox({game, group, api, params: {stat, maxStat, img, hint}}){
+	var self = this;
+	var g = this.g = game.add.group();
+	group.add(g);
 
 	var text = game.make.bitmapText(0, 0, "default", "", 32, g);
 	g.add(text);
@@ -197,11 +232,18 @@ function StatBox({game, group, x, y, params: {stat, maxStat, img, hint}}){
 
 	var icon = game.make.image(0, 0, img);
 	g.add(icon);
-	render();
 
+	icon.inputEnabled = true;
+	icon.events.onInputOver.add(function(){
+		api.showText(locale[hint]);
+	})
+
+	render();
 	function render(){
+		console.log(stat, maxStat, img, hint);
 		text.text = maxStat ? `${stat}/${maxStat}` : `${stat}`;
 		icon.alignTo(text, Phaser.RIGHT_TOP, 5, 0);
+		self.width = text.width + 5 + icon.width;
 	}
 
 	this.update = function(stat_, maxStat_){
