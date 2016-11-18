@@ -51,6 +51,7 @@ function GameController(playersData){
 				if(result.type == "next"){
 					playerManager.next();
 					commandBuilder.set("currentPlayer", playerManager.current().id);
+					self.currentPlayer().regenSpeed();
 					order();
 					return self.gameLoop();
 				}else if(result.type == "repeat"){
@@ -62,9 +63,9 @@ function GameController(playersData){
 	}
 
 	this.handleTurn = function(turn){
-		spellBook.castSpell(self, turn);
+		var repeat = spellBook.castSpell(self, turn);
 		if(self.currentTarget().health > 0){
-			return {type: "next"};
+			return {type: repeat ? "repeat" : "next"};
 		}else{
 			commandBuilder.set("winner", self.currentPlayer().id);
 			order();
@@ -72,22 +73,6 @@ function GameController(playersData){
 		}
 		 //return spellBook.castSpell(self, turn);
 	}
-/*	this.castSpell = function({x, y, player:id}){
-		return spellBook.castSpell(this, x, y, id);
-		var board = players[id].board;
-		board.destroyToken(x, y);
-		board.destroyToken(x - 1, y);
-		board.destroyToken(x, y - 1);
-		board.destroyToken(x + 1, y);
-		board.destroyToken(x, y + 1);
-		order();
-		self.fall(id);
-		if(board.containsShit()){
-			return {type: "next"};
-		}else{
-			return {type: "end", player:id};
-		}
-	}*/
 	this.destroyConnected = function(x, y, id){
 		var board = players[id].board;
 		var type = board.getToken(x, y).type;
@@ -148,19 +133,26 @@ function SpellBook(){
 		var {type, count} = api.destroyConnected(x, y, player);
 		var spell = spells[type][index(count)];
 		api.commandBuilder.set("spell", spell.name);
-		spell.effect(api, {x, y, player, count});
+		var repeat = spell.effect(api, {x, y, player, count});
 		api.order();
 		api.fallBoth();
 		api.order();
+		return repeat;
 	}
 }
 
 function index(count){
-	return 0;
+	return count > 1 ? 1 : 0;
 }
 
 var spells = {
 	fire: [
+		{
+			name: "ember",
+			effect(api, {x, y, player, count}){
+				return api.currentPlayer().useSpeed();
+			}
+		},
 		{
 			name: "burningArrow",
 			effect(api, {x, y, player, count}){
@@ -171,6 +163,12 @@ var spells = {
 	],
 	water: [
 		{
+			name: "droplet",
+			effect(api, {x, y, player, count}){
+				return api.currentPlayer().useSpeed();
+			}
+		},
+		{
 			name: "healingWater",
 			effect(api, {x, y, player, count}){
 				api.currentPlayer().heal(count);
@@ -179,6 +177,12 @@ var spells = {
 	],
 	earth: [
 		{
+			name: "mote",
+			effect(api, {x, y, player, count}){
+				return api.currentPlayer().useSpeed();
+			}
+		},
+		{
 			name: "earthShield",
 			effect(api, {x, y, player, count}){
 				api.currentPlayer().addShield(count);
@@ -186,6 +190,12 @@ var spells = {
 		}
 	],
 	air: [
+		{
+			name: "sparkle",
+			effect(api, {x, y, player, count}){
+				return api.currentPlayer().useSpeed();
+			}
+		},
 		{
 			name: "lightning",
 			effect(api, {x, y, player, count}){

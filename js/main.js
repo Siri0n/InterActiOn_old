@@ -11,7 +11,8 @@ var gameOptions = {
 		spectrum: {fire: 4, water: 4, earth: 4, air: 4},
 		type: "local",
 		health: 20,
-		shield: 0
+		shield: 0,
+		speed: 0
 	},
 	players: [
 		{

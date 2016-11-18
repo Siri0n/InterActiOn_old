@@ -1,7 +1,4 @@
 module.exports = {
-	burningArrow: "Burning Arrow.\nDeals shield damage equal to tokens number.\nThen deals half of that damage, rounded up.",
-	lightning: "Lightning.\nDeals damage equal to tokens number.",
-	healingWater: "Healing Water.\nHeals damage equal to token number.",
 	blackCliffs: "Tusks of Black Cliffs.\n",
 	icarus: "Icarus.\n",
 	playWithFire: "Play with Fire.\n",
@@ -12,9 +9,19 @@ module.exports = {
 	shardOfIce: "Shard of Ice.\n",
 	thereUpHigh: "There Up High.\n",
 	theBloodOfKings: "The Blood Of Kings.\n",
-	stupidAir: "Stupid Air.\nDoes nothing",
-	stupidEarth: "Stupid Earth.\nDoes nothing",
-	earthShield: "Earth Shield.\nCreates a shield equal to token number.",
-	health_hint: "Health.\nWhen it hits zero, you're screwed.",
-	shield_hint: "Shield.\nSoaks some damage"
+	hints: {
+		health: "Здоровье.\nЕсли оно уменьшится до нуля, вы проиграли.",
+		shield: "Щит.\nПоглощает урон.",
+		speed: "Скорость.\nПозволяет уничтожать одиночные фишки,\nне тратя ход"
+	},
+	spells: {
+		ember: "Уголёк.\nСлишком мал, чтобы нанести урон.\nТратит скорость, чтобы продолжить ход.",
+		sparkle: "Искорка.\nСлишком мала, чтобы нанести урон.\nТратит скорость, чтобы продолжить ход.",
+		droplet: "Капля.\nСлишком мала, чтобы исцелить.\nТратит скорость, чтобы продолжить ход.",
+		mote: "Пылинка.\nСлишком мала, чтобы защитить.\nТратит скорость, чтобы продолжить ход.",
+		burningArrow: "Горящая Стрела.\nНаносит Х урона щиту, затем Х/2 урона\n(с округлением вверх).",
+		lightning: "Молния.\nНаносит Х урона.",
+		healingWater: "Живая Вода.\nЛечит Х здоровья.",
+		earthShield: "Земляной Щит.\nДаёт Х щита."
+	}
 }

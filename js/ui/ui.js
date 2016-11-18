@@ -15,7 +15,7 @@ module.exports = function(players){
 			ui.setCurrentPlayer(command.currentPlayer);
 		}
 		command.spell && 
-			ui.bottomMessage.showText(locale[command.spell]);
+			ui.bottomMessage.showText(locale.spells[command.spell]);
 		command.winner && 
 			ui.bottomMessage.showText(ui.players[command.winner].name + " wins!");
 		return Promise.map(
@@ -54,6 +54,7 @@ module.exports = function(players){
 						game.load.image("tokens/air", "tokens/air.png");
 						game.load.image("icons/health", "icons/health.png");
 						game.load.image("icons/shield", "icons/shield.png");
+						game.load.image("icons/speed", "icons/speed.png");
 						game.load.start();
 					},
 					create(){
@@ -159,13 +160,13 @@ function PlayerSide({game, group, api, data, rect}){
 	this.board = new BoardUIController(board);
 
 	this.executeCommand = function(command){
-		"health" in command && playerStats.setHealth(command.health);
-		"shield" in command && playerStats.setShield(command.shield);
+		console.log(command);
+		playerStats.setStats(command.stat);
 		return command.board && self.board.executeCommand(command.board);
 	}
 }
 
-function PlayerStats({game, group, api, player:{name, health, shield}, width}){
+function PlayerStats({game, group, api, player:{name, health, shield, speed}, width}){
 	var g = game.add.group();
 	group.add(g);
 	var text = game.make.bitmapText(0, 0, "default", name, 32, g);
@@ -176,16 +177,16 @@ function PlayerStats({game, group, api, player:{name, health, shield}, width}){
 	var container = new StatBoxContainer({game, group:g, api, center: {x: width/2, y: 60}, spacing: 20,
 		statBoxData:[
 			{id: "health", value: health},
-			{id: "shield", value: shield}
+			{id: "shield", value: shield},
+			{id: "speed", value: speed}
 		]
 	});
 	this.height = 40;
-	this.setHealth = function(arg){
-		container.boxes.health.update(arg);
-		container.update();
-	}
-	this.setShield = function(arg){
-		container.boxes.shield.update(arg);
+	this.setStats = function(arg){
+		console.log(arg);
+		for(let key in arg){
+			container.boxes[key].update(arg[key]);
+		}
 		container.update();
 	}
 }
@@ -201,7 +202,7 @@ function StatBoxContainer({game, group, api, spacing, statBoxData, center: {x, y
 		data => self.boxes[data.id] = new StatBox({game, group:g, api, params: {
 			stat: data.value, 
 			maxStat:  data.maxValue,
-			hint: data.id + "_hint",
+			hint: data.id,
 			img: "icons/" + data.id 
 		}})
 	)
@@ -235,12 +236,11 @@ function StatBox({game, group, api, params: {stat, maxStat, img, hint}}){
 
 	icon.inputEnabled = true;
 	icon.events.onInputOver.add(function(){
-		api.showText(locale[hint]);
+		api.showText(locale.hints[hint]);
 	})
 
 	render();
 	function render(){
-		console.log(stat, maxStat, img, hint);
 		text.text = maxStat ? `${stat}/${maxStat}` : `${stat}`;
 		icon.alignTo(text, Phaser.RIGHT_TOP, 5, 0);
 		self.width = text.width + 5 + icon.width;
@@ -250,6 +250,7 @@ function StatBox({game, group, api, params: {stat, maxStat, img, hint}}){
 		stat = stat_;
 		maxStat = maxStat_;
 		render();
+		game.add.tween(icon.scale).to({x: 1.1, y: 1.1}, 100, Phaser.Easing.Linear.In, true, 0, 0, true);
 	}
 }
 
