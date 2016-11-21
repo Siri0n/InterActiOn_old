@@ -166,7 +166,7 @@ function PlayerSide({game, group, api, data, rect}){
 	}
 }
 
-function PlayerStats({game, group, api, player:{name, health, shield, speed}, width}){
+function PlayerStats({game, group, api, player:{name, stats}, width}){
 	var g = game.add.group();
 	group.add(g);
 	var text = game.make.bitmapText(0, 0, "default", name, 32, g);
@@ -175,11 +175,7 @@ function PlayerStats({game, group, api, player:{name, health, shield, speed}, wi
 	text.x = width/2;
 
 	var container = new StatBoxContainer({game, group:g, api, center: {x: width/2, y: 60}, spacing: 20,
-		statBoxData:[
-			{id: "health", value: health},
-			{id: "shield", value: shield},
-			{id: "speed", value: speed}
-		]
+		statBoxData: Object.keys(stats).map(key => ({id: key, value: stats[key].value, maxValue: stats[key].maxValue}))
 	});
 	this.height = 40;
 	this.setStats = function(arg){
@@ -200,8 +196,8 @@ function StatBoxContainer({game, group, api, spacing, statBoxData, center: {x, y
 
 	var boxes = statBoxData.map(
 		data => self.boxes[data.id] = new StatBox({game, group:g, api, params: {
-			stat: data.value, 
-			maxStat:  data.maxValue,
+			value: data.value, 
+			maxValue:  data.maxValue,
 			hint: data.id,
 			img: "icons/" + data.id 
 		}})
@@ -222,7 +218,7 @@ function StatBoxContainer({game, group, api, spacing, statBoxData, center: {x, y
 	self.update(spacing);
 }
 
-function StatBox({game, group, api, params: {stat, maxStat, img, hint}}){
+function StatBox({game, group, api, params: {value, maxValue, img, hint}}){
 	var self = this;
 	var g = this.g = game.add.group();
 	group.add(g);
@@ -241,14 +237,14 @@ function StatBox({game, group, api, params: {stat, maxStat, img, hint}}){
 
 	render();
 	function render(){
-		text.text = maxStat ? `${stat}/${maxStat}` : `${stat}`;
+		text.text = maxValue ? `${value}/${maxValue}` : `${value}`;
 		icon.alignTo(text, Phaser.RIGHT_TOP, 5, 0);
 		self.width = text.width + 5 + icon.width;
 	}
 
-	this.update = function(stat_, maxStat_){
-		stat = stat_;
-		maxStat = maxStat_;
+	this.update = function(stat, maxStat){
+		value = stat;
+		maxStat && (maxValue = maxStat);
 		render();
 		game.add.tween(icon.scale).to({x: 1.1, y: 1.1}, 100, Phaser.Easing.Linear.In, true, 0, 0, true);
 	}

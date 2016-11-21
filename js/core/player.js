@@ -2,7 +2,7 @@ var Board = require("./board");
 
 module.exports = Player;
 
-function Player({id, name, health, shield, speed, boardSize, spectrum, brain}, commandBuilder){
+function Player({id, name, stats, boardSize, spectrum, brain}, commandBuilder){
 	var self = this;
 
 	var stat = commandBuilder.access("stat");
@@ -10,9 +10,7 @@ function Player({id, name, health, shield, speed, boardSize, spectrum, brain}, c
 	var heal = commandBuilder.access("heal");
 
 	this.id = id;
-	this.health = health;
-	this.shield = shield;
-	this.speed = speed;
+	this.dead = false;
 	this.nextTurn = brain.nextTurn;
 
 	this.board = new Board(boardSize, spectrum, commandBuilder.access("board"));
@@ -22,41 +20,54 @@ function Player({id, name, health, shield, speed, boardSize, spectrum, brain}, c
 		rest && self.damageHealth(rest);
 	}
 	this.damageHealth = function(amount){
-		self.health -= amount;
+		if(!amount){
+			return;
+		}
+		stats.health.value -= amount;
+		if(stats.health.value <= 0){
+			self.dead = true;
+		}
 		damage.put("health", amount);
-		stat.set("health", self.health);
+		stat.set("health", stats.health.value);
 	}
 	this.heal = function(amount){
-		self.health += amount;
+		amount = Math.min(amount, stats.health.maxValue - stats.health.value);
+		if(!amount){
+			return;
+		}
+		stats.health.value += amount;
 		heal.put("health", amount);
-		stat.set("health", self.health);
+		stat.set("health", stats.health.value);
 	}
 	this.addShield = function(amount){
-		self.shield += amount;
+		stats.shield.value += amount;
 		heal.put("shield", amount);
-		stat.set("shield", self.shield);
+		stat.set("shield", stats.shield.value);
 	}
 	this.damageShield = function(amount){
-		var dmg = Math.min(amount, self.shield);
-		self.shield -= dmg;
-		damage.put("shield", dmg);
-		stat.set("shield", self.shield);
+		var dmg = Math.min(amount, stats.shield.value);
+		stats.shield.value -= dmg;
+		dmg && damage.put("shield", dmg);
+		dmg && stat.set("shield", stats.shield.value);
 		return amount - dmg;
 	}
 	this.useSpeed = function(){
-		if(self.speed > 0){
-			self.speed--;
+		if(stats.speed.value > 0){
+			stats.speed.value--;
 			damage.put("speed", 1);
-			stat.set("speed", self.speed);
+			stat.set("speed", stats.speed.value);
 			return true;
 		}else{
 			return false;
 		}
 	}
 	this.regenSpeed = function(){
-		self.speed++;
+		if(stats.speed.value == stats.speed.maxValue){
+			return;
+		}
+		stats.speed.value++;
 		heal.put("speed", 1);
-		stat.set("speed", self.speed);
+		stat.set("speed", stats.speed.value);
 	}
 
 	this.getRandomType = function(customSpectrum = spectrum){

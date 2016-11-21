@@ -64,7 +64,7 @@ function GameController(playersData){
 
 	this.handleTurn = function(turn){
 		var repeat = spellBook.castSpell(self, turn);
-		if(self.currentTarget().health > 0){
+		if(!self.currentTarget().dead){
 			return {type: repeat ? "repeat" : "next"};
 		}else{
 			commandBuilder.set("winner", self.currentPlayer().id);
