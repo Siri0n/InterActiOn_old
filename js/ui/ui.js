@@ -17,7 +17,7 @@ module.exports = function(players){
 		command.spell && 
 			ui.bottomMessage.showText(locale.spells[command.spell]);
 		command.winner && 
-			ui.bottomMessage.showText(ui.players[command.winner].name + " wins!");
+			ui.bottomMessage.showText(locale.wins.replace("$player", ui.players[command.winner].name));
 		return Promise.map(
 			Object.keys(ui.players),
 			key => command[key] && ui.players[key].executeCommand(command[key])
@@ -129,7 +129,7 @@ function TextBlock({game, group, rect}){
 	g.add(background);
 	background.width = rect.width;
 	background.height = rect.height;
-	var message = game.make.bitmapText(rect.width/2, rect.height/2, "default", "Let's rock!", 32);
+	var message = game.make.bitmapText(rect.width/2, rect.height/2, "default", locale["startingMessage"], 32);
 	message.anchor.x = message.anchor.y = 0.5;
 	message.tint = 0;
 	g.add(message);
@@ -179,9 +179,14 @@ function PlayerStats({game, group, api, player:{name, stats}, width}){
 	});
 	this.height = 40;
 	this.setStats = function(arg){
+		const prefix = "max.";
 		console.log(arg);
 		for(let key in arg){
-			container.boxes[key].update(arg[key]);
+			if(key.indexOf(prefix) == 0 && key.replace(prefix, "") in arg){
+				continue;
+			}
+			key = key.replace(prefix, "");
+			container.boxes[key].update(arg[key], arg[prefix + key]);
 		}
 		container.update();
 	}
@@ -243,8 +248,9 @@ function StatBox({game, group, api, params: {value, maxValue, img, hint}}){
 	}
 
 	this.update = function(stat, maxStat){
-		value = stat;
-		maxStat && (maxValue = maxStat);
+		console.log(stat, maxStat);
+		typeof stat == "number" && (value = stat);
+		typeof maxStat == "number" && (maxValue = maxStat);
 		render();
 		game.add.tween(icon.scale).to({x: 1.1, y: 1.1}, 100, Phaser.Easing.Linear.In, true, 0, 0, true);
 	}

@@ -15,6 +15,9 @@ function Player({id, name, stats, boardSize, spectrum, brain}, commandBuilder){
 
 	this.board = new Board(boardSize, spectrum, commandBuilder.access("board"));
 
+	this.get = function(param, max){
+		return stats[param][max ? "maxValue" : "value"];
+	}
 	this.damage = function(amount){
 		var rest = self.damageShield(amount);
 		rest && self.damageHealth(rest);
@@ -38,6 +41,21 @@ function Player({id, name, stats, boardSize, spectrum, brain}, commandBuilder){
 		stats.health.value += amount;
 		heal.put("health", amount);
 		stat.set("health", stats.health.value);
+	}
+	this.increaseMaxHealth = function(amount){
+		stats.health.maxValue += amount;
+		heal.put("max.health", amount);
+		stat.set("max.health", stats.health.maxValue);
+	}
+	this.decreaseMaxHealth = function(amount){
+		stats.health.maxValue -= amount;
+		stats.health.value = Math.min(stats.health.value, stats.health.maxValue);
+		if(stats.health.value <= 0){
+			self.dead = true;
+		}
+		damage.put("max.health", amount);
+		stat.set("health", stats.health.value);
+		stat.set("max.health", stats.health.maxValue);
 	}
 	this.addShield = function(amount){
 		stats.shield.value += amount;

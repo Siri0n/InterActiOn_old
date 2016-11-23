@@ -131,7 +131,7 @@ module.exports = GameController;
 function SpellBook(){
 	this.castSpell = function(api, {x, y, player}){
 		var {type, count} = api.destroyConnected(x, y, player);
-		var spell = spells[type][index(count)];
+		var spell = spells[type][Math.min(index(count), spells[type].length - 1)];
 		api.commandBuilder.set("spell", spell.name);
 		var repeat = spell.effect(api, {x, y, player, count});
 		api.order();
@@ -142,7 +142,7 @@ function SpellBook(){
 }
 
 function index(count){
-	return count > 1 ? 1 : 0;
+	return Math.ceil(Math.sqrt(count)) - 1;
 }
 
 var spells = {
@@ -159,6 +159,13 @@ var spells = {
 				api.currentTarget().damageShield(count);
 				api.currentTarget().damage(Math.ceil(count/2));
 			}
+		},
+		{
+			name: "fireball",
+			effect(api, {x, y, player, count}){
+				api.currentTarget().damageShield(count);
+				api.currentTarget().damage(count);
+			}
 		}
 	],
 	water: [
@@ -171,6 +178,13 @@ var spells = {
 		{
 			name: "healingWater",
 			effect(api, {x, y, player, count}){
+				api.currentPlayer().heal(count);
+			}
+		},
+		{
+			name: "waterOfLife",
+			effect(api, {x, y, player, count}){
+				api.currentPlayer().increaseMaxHealth(2);
 				api.currentPlayer().heal(count);
 			}
 		}
@@ -187,6 +201,15 @@ var spells = {
 			effect(api, {x, y, player, count}){
 				api.currentPlayer().addShield(count);
 			}
+		},
+		{
+			name: "blackCliffs",
+			effect(api, {x, y, player, count}){
+				api.currentPlayer().addShield(count);
+				if(!api.currentTarget().get("shield")){
+					api.currentTarget().decreaseMaxHealth(3);
+				}
+			}
 		}
 	],
 	air: [
@@ -200,6 +223,12 @@ var spells = {
 			name: "lightning",
 			effect(api, {x, y, player, count}){
 				api.currentTarget().damage(count);
+			}
+		},
+		{
+			name: "ballLightning",
+			effect(api, {x, y, player, count}){
+				api.currentTarget().damage(2*count - 4);
 			}
 		}
 	]

@@ -27,11 +27,11 @@ var gameOptions = {
 	players: [
 		{
 			id: "1",
-			name: "First player"
+			name: "Игрок 1"
 		},
 		{
 			id: "2",
-			name: "Second player"
+			name: "Игрок 2"
 		}
 	]
 }

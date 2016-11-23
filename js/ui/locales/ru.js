@@ -1,5 +1,6 @@
 module.exports = {
-	blackCliffs: "Tusks of Black Cliffs.\n",
+	startingMessage: "Ебашьте друг друга!",
+	wins: "$player побеждает!",
 	icarus: "Icarus.\n",
 	playWithFire: "Play with Fire.\n",
 	giveEmHell: "Give 'em Hell.\n",
@@ -21,7 +22,11 @@ module.exports = {
 		mote: "Пылинка.\nСлишком мала, чтобы защитить.\nТратит скорость, чтобы продолжить ход.",
 		burningArrow: "Горящая Стрела.\nНаносит Х урона щиту, затем Х/2 урона\n(с округлением вверх).",
 		lightning: "Молния.\nНаносит Х урона.",
-		healingWater: "Живая Вода.\nЛечит Х здоровья.",
-		earthShield: "Земляной Щит.\nДаёт Х щита."
+		healingWater: "Исцеляющая Вода.\nЛечит Х здоровья.",
+		earthShield: "Земляной Щит.\nДаёт Х щита.",
+		fireball: "Огненный Шар.\nНаносит Х урона щиту, затем Х урона.",
+		ballLightning: "Шаровая Молния.\nНаносит 2Х - 4 урона.",
+		waterOfLife: "Живая Вода.\nУвеличивает максимум жизни на 2.\nЛечит Х здоровья",
+		blackCliffs: "Бивни Чёрных Скал.\nДаёт Х щита. Если противник без щита,\nснижает его макс. здоровье на 3."
 	}
 }
