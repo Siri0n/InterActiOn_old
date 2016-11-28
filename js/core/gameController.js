@@ -206,7 +206,7 @@ var spells = {
 			name: "blackCliffs",
 			effect(api, {x, y, player, count}){
 				api.currentPlayer().addShield(count);
-				if(!api.currentTarget().get("shield")){
+				if(!api.currentTarget().stats.shield.value()){
 					api.currentTarget().decreaseMaxHealth(3);
 				}
 			}

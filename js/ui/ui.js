@@ -11,6 +11,7 @@ module.exports = function(players){
 	var started = false;
 
 	function executeCommand(command){
+		console.log("execute", command);
 		if(command.currentPlayer){
 			ui.setCurrentPlayer(command.currentPlayer);
 		}
@@ -160,8 +161,8 @@ function PlayerSide({game, group, api, data, rect}){
 	this.board = new BoardUIController(board);
 
 	this.executeCommand = function(command){
-		console.log(command);
-		playerStats.setStats(command.stat);
+		//console.log(command);
+		playerStats.setStats(command.stats);
 		return command.board && self.board.executeCommand(command.board);
 	}
 }
@@ -179,14 +180,9 @@ function PlayerStats({game, group, api, player:{name, stats}, width}){
 	});
 	this.height = 40;
 	this.setStats = function(arg){
-		const prefix = "max.";
 		console.log(arg);
 		for(let key in arg){
-			if(key.indexOf(prefix) == 0 && key.replace(prefix, "") in arg){
-				continue;
-			}
-			key = key.replace(prefix, "");
-			container.boxes[key].update(arg[key], arg[prefix + key]);
+			container.boxes[key].update(arg[key].value, (arg[key].max || {}).value);
 		}
 		container.update();
 	}
